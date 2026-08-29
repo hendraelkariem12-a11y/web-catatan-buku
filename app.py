@@ -2,14 +2,14 @@ import os
 import re
 import json
 import logging
+import time
+from collections import defaultdict
 from io import BytesIO
 from html import escape
 from datetime import datetime
 from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # ReportLab untuk Fitur Cetak PDF Dinamis
@@ -21,15 +21,20 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI KEAMANAN (CSRF & RATE LIMITER)
+# KONFIGURASI KEAMANAN CSRF
 # ==================================================
 csrf = CSRFProtect(app)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
-)
+
+# Penyimpanan sementara untuk Rate Limiter login (Aman di Vercel)
+login_attempts = defaultdict(list)
+
+def cek_rate_limit_login(ip):
+    sekarang = time.time()
+    login_attempts[ip] = [t for t in login_attempts[ip] if sekarang - t < 60]
+    if len(login_attempts[ip]) >= 5:
+        return False
+    login_attempts[ip].append(sekarang)
+    return True
 
 # ==================================================
 # KONFIGURASI LOGGING SISTEM
@@ -250,7 +255,7 @@ JS_THEME_SCRIPT = """
 """
 
 # ==================================================
-# TEMPLATE HTML (DENGAN CSRF TOKEN)
+# TEMPLATE HTML
 # ==================================================
 
 HTML_INDEX = """
@@ -1242,9 +1247,14 @@ def kosongkan_tong_sampah():
     return redirect('/tong-sampah')
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=["POST"])
 def login():
+    ip_pengguna = request.headers.get('x-forwarded-for', request.remote_addr)
+    
     if request.method == 'POST':
+        if not cek_rate_limit_login(ip_pengguna):
+            app.logger.warning(f"Rate limit terlampaui untuk IP: {ip_pengguna}")
+            return render_template_string(HTML_LOGIN, error="Terlalu banyak percobaan salah. Mohon tunggu 1 menit.")
+            
         user = request.form.get('username')
         pwd = request.form.get('password')
         if user == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, pwd):
