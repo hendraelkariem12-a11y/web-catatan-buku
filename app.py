@@ -7,6 +7,7 @@ from html import escape
 from datetime import datetime
 from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # ReportLab untuk Fitur Cetak PDF Dinamis
@@ -16,6 +17,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
+
+# ==================================================
+# KONFIGURASI CSRF PROTECTION
+# ==================================================
+csrf = CSRFProtect(app)
 
 # ==================================================
 # KONFIGURASI LOGGING SISTEM
@@ -236,7 +242,7 @@ JS_THEME_SCRIPT = """
 """
 
 # ==================================================
-# TEMPLATE HTML
+# TEMPLATE HTML (DENGAN CSRF TOKEN PADA SETIAP FORM)
 # ==================================================
 
 HTML_INDEX = """
@@ -283,6 +289,7 @@ HTML_INDEX = """
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <form action="/restore" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="modal-body">
                 <p class="small text-muted">Upload file <code>backup_karya.json</code> yang pernah di-download untuk mengembalikan semua naskah.</p>
                 <input type="file" name="file_json" class="form-control bg-secondary text-white" accept=".json" required>
@@ -320,6 +327,7 @@ HTML_INDEX = """
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema Baru</h6>
         <form action="/tambah-tema" method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="col-9"><input type="text" name="nama" class="form-control form-control-sm" placeholder="Misal: Psikologi..." required></div>
             <div class="col-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button></div>
         </form>
@@ -355,7 +363,8 @@ HTML_INDEX = """
                         <h4 class="h5 mb-0 fw-bold">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
                     </a>
                     {% if is_admin %}
-                    <form action="/hapus-tema/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                    <form action="/hapus-tema/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
                     </form>
                     {% endif %}
@@ -427,6 +436,7 @@ HTML_PDF_VIEWER = """
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-file-arrow-up me-1"></i> Upload File PDF Baru</h6>
         <form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div>
             <div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div>
         </form>
@@ -506,6 +516,7 @@ HTML_ESAI_PENULIS = """
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai Baru</h6>
         <form action="/tambah-esai" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul..." required>
             <input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori: Refleksi, Ide, dll.">
             <textarea name="isi" class="form-control form-control-sm mb-2" rows="4" placeholder="Tulis catatan (Markdown didukung)..." required></textarea>
@@ -518,6 +529,7 @@ HTML_ESAI_PENULIS = """
     <div class="card-gold p-4 mb-3 esai-item">
         {% if is_admin %}
         <form action="/hapus-esai/{{ e.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
         </form>
         {% endif %}
@@ -588,6 +600,7 @@ HTML_TEMA = """
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-book-medical me-1"></i> Tambah Buku Baru</h6>
         <form action="/tambah-buku" method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="tema_id" value="{{ tema.id }}">
             <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
             <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul (Opsional)"></div>
@@ -616,6 +629,7 @@ HTML_TEMA = """
                         <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="Export Buku ke TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
                         {% if is_admin %}
                         <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
                         </form>
                         {% endif %}
@@ -670,6 +684,7 @@ HTML_BUKU_DETAIL = """
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-file-circle-plus me-1"></i> Tambah Bab / Catatan Baru</h6>
         <form action="/tambah-catatan" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="buku_id" value="{{ buku.id }}">
             <div class="row g-2 mb-2">
                 <div class="col-md-4"><input type="text" name="bagian" class="form-control form-control-sm" placeholder="Bagian (Misal: Bab 1)"></div>
@@ -688,6 +703,7 @@ HTML_BUKU_DETAIL = """
             <div class="card-gold p-4 position-relative">
                 {% if is_admin %}
                 <form action="/hapus-catatan/{{ cat.id }}/{{ buku.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus bab ini?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
                 </form>
                 {% endif %}
@@ -794,6 +810,7 @@ HTML_TONG_SAMPAH = """
         </div>
         {% endfor %}
         <form action="/kosongkan-tong-sampah" method="POST" onsubmit="return confirm('Kosongkan semua?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger w-100 mt-3">🗑️ Kosongkan Tong Sampah</button>
         </form>
     {% else %}
@@ -918,6 +935,7 @@ HTML_LOGIN = """
         <p class="text-muted text-center small mb-4">Masuk untuk mengelola catatan karya</p>
         {% if error %}<div class="alert alert-danger py-2 small text-center">{{ error }}</div>{% endif %}
         <form action="/login" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="username" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Username" required>
             <input type="password" name="password" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Password" required>
             <button type="submit" class="btn btn-info w-100 fw-bold">Masuk ke Sistem</button>
