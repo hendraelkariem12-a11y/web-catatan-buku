@@ -14,20 +14,10 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI DATABASE (TURSO CLOUD + FALLBACK LOKAL)
+# KONFIGURASI DATABASE AMAN VERCEL SERVERLESS
 # ==================================================
-db_url = os.environ.get('DATABASE_URL', '')
-db_token = os.environ.get('DATABASE_TOKEN', '')
-
-if db_url and db_token:
-    # Format URI LibSQL yang stabil untuk Vercel Serverless
-    url_clean = db_url.replace('libsql://', '').replace('https://', '')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+libsql://{url_clean}?authToken={db_token}"
-else:
-    # Fallback ke SQLite lokal sementara
-    db_path = os.path.join('/tmp', 'karya_buku.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-
+db_path = os.path.join('/tmp', 'karya_buku.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
@@ -84,19 +74,15 @@ class TongSampah(db.Model):
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Inisialisasi Tabel Otomatis
-try:
-    with app.app_context():
-        db.create_all()
-        if Tema.query.count() == 0:
-            db.session.add_all([
-                Tema(nama='Filsafat'),
-                Tema(nama='Keuangan'),
-                Tema(nama='Komunikasi')
-            ])
-            db.session.commit()
-except Exception as e:
-    print(f"Error DB init: {e}")
+with app.app_context():
+    db.create_all()
+    if Tema.query.count() == 0:
+        db.session.add_all([
+            Tema(nama='Filsafat'),
+            Tema(nama='Keuangan'),
+            Tema(nama='Komunikasi')
+        ])
+        db.session.commit()
 
 @app.route('/profile.jpg')
 def serve_profile():
