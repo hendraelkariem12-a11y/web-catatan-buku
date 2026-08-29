@@ -16,10 +16,19 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI DATABASE AMAN VERCEL SERVERLESS
+# KONFIGURASI DATABASE (TURSO CLOUD + FALLBACK LOKAL)
 # ==================================================
-db_path = os.path.join('/tmp', 'karya_buku.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+db_url = os.environ.get('DATABASE_URL', '')
+db_token = os.environ.get('DATABASE_TOKEN', '')
+
+if db_url and db_token:
+    # Menggunakan koneksi SQLite over HTTP yang kompatibel dengan Vercel Serverless
+    url_clean = db_url.replace('libsql://', '').replace('https://', '')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:////tmp/karya_buku.db"
+else:
+    db_path = os.path.join('/tmp', 'karya_buku.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
@@ -219,7 +228,7 @@ HTML_INDEX = """
           </div>
           <form action="/restore" method="POST" enctype="multipart/form-data">
               <div class="modal-body">
-                <p class="small text-muted">Upload file <code>backup_karya.json</code> yang pernah di-download sebelumnya untuk mengembalikan seluruh catatan.</p>
+                <p class="small text-muted">Upload file <code>backup_karya.json</code> yang pernah di-download untuk mengembalikan semua naskah.</p>
                 <input type="file" name="file_json" class="form-control bg-secondary text-white" accept=".json" required>
               </div>
               <div class="modal-footer border-secondary">
