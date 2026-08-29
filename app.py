@@ -296,10 +296,11 @@ HTML_INDEX = """
         <p class="text-muted small">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
     </div>
 
+    <!-- PENCARIAN CANGGIH GLOBAL -->
     <div class="card-gold p-3 mb-4 rounded-3">
         <div class="search-box mb-2">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="cari-input" class="form-control form-control-sm" placeholder="Cari judul, kategori..." oninput="jalankanPencarian(this.value)">
+            <input type="text" id="cari-global" class="form-control form-control-sm" placeholder="Cari tema, judul buku, atau isi catatan..." oninput="jalankanPencarianCanggih(this.value)">
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2">
             <span class="badge border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
@@ -321,7 +322,7 @@ HTML_INDEX = """
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
     <div class="row g-3" id="daftar-kategori">
-        <div class="col-12 kategori-item" data-nama="Jurnal & Esai">
+        <div class="col-12 kategori-item" data-nama="Jurnal & Esai" data-keywords="jurnal esai refleksi harian">
             <a href="/catatan-penulis" class="text-decoration-none">
                 <div class="card-gold p-4">
                     <div class="d-flex justify-content-between align-items-center">
@@ -340,7 +341,7 @@ HTML_INDEX = """
         </div>
 
         {% for tema in tema_list %}
-        <div class="col-md-6 kategori-item" data-nama="{{ tema.nama }}">
+        <div class="col-md-6 kategori-item" data-nama="{{ tema.nama }}" data-keywords="{{ tema.nama | lower }}">
             <div class="card-gold p-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <a href="/tema/{{ tema.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1">
@@ -362,10 +363,16 @@ HTML_INDEX = """
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function jalankanPencarian(kata) {
+function jalankanPencarianCanggih(kata) {
+    const keyword = kata.toLowerCase().trim();
     document.querySelectorAll('.kategori-item').forEach(item => {
-        const nama = item.getAttribute('data-nama').toLowerCase();
-        item.style.display = kata === '' || nama.includes(kata.toLowerCase()) ? '' : 'none';
+        const keywords = item.getAttribute('data-keywords') || '';
+        const textContent = item.textContent.toLowerCase();
+        if (keyword === '' || keywords.includes(keyword) || textContent.includes(keyword)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
     });
 }
 function filterKategori(nama) {
@@ -575,11 +582,14 @@ HTML_TEMA = """
                             </div>
                         </div>
                     </a>
-                    {% if is_admin %}
-                    <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus buku ini?');">
-                        <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
-                    </form>
-                    {% endif %}
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="Export Buku ke TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
+                        {% if is_admin %}
+                        <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini?');">
+                            <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -590,6 +600,91 @@ HTML_TEMA = """
         {% endfor %}
     </div>
 </div>
+</body>
+</html>
+"""
+
+HTML_BUKU_DETAIL = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Buku - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-5" style="max-width:850px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a href="/tema/{{ buku.tema_id }}" class="btn btn-custom-outline rounded-pill btn-sm px-4 shadow-sm fw-bold"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Tema</a>
+        <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-arrow-down me-1"></i> Export Buku (TXT)</a>
+    </div>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-book me-1"></i> Naskah Buku</span>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">{{ buku.judul.upper() }}</h2>
+        {% if buku.subjudul %}<p class="text-muted mb-2">{{ buku.subjudul }}</p>{% endif %}
+        {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0">"{{ buku.kutipan }}"</blockquote>{% endif %}
+    </div>
+    
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-file-circle-plus me-1"></i> Tambah Bab / Catatan Baru</h6>
+        <form action="/tambah-catatan" method="POST">
+            <input type="hidden" name="buku_id" value="{{ buku.id }}">
+            <div class="row g-2 mb-2">
+                <div class="col-md-4"><input type="text" name="bagian" class="form-control form-control-sm" placeholder="Bagian (Misal: Bab 1)"></div>
+                <div class="col-md-8"><input type="text" name="judul_bab" class="form-control form-control-sm" placeholder="Judul Bab..." required></div>
+            </div>
+            <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung)..." required></textarea></div>
+            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Bab</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Bab & Catatan:</h5>
+    <div class="row g-3">
+        {% for cat in catatan_list %}
+        <div class="col-12">
+            <div class="card-gold p-4 position-relative">
+                {% if is_admin %}
+                <form action="/hapus-catatan/{{ cat.id }}/{{ buku.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus bab ini?');">
+                    <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
+                </form>
+                {% endif %}
+                {% if cat.bagian %}<span class="badge bg-secondary mb-1">{{ cat.bagian }}</span>{% endif %}
+                <h4 class="h5 fw-bold text-warning mb-3">{{ cat.judul_bab }}</h4>
+                <div class="markdown-body text-main" id="content-catatan-{{ cat.id }}"></div>
+                <textarea id="raw-catatan-{{ cat.id }}" style="display:none;">{{ cat.isi }}</textarea>
+                <div class="text-muted small mt-3">Dibuat: {{ cat.dibuat_pada.strftime('%d %b %Y %H:%M') if cat.dibuat_pada else '-' }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-4 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada catatan bab dalam buku ini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for cat in catatan_list %}
+        var rawText = document.getElementById('raw-catatan-{{ cat.id }}').value;
+        document.getElementById('content-catatan-{{ cat.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+</script>
 </body>
 </html>
 """
@@ -948,6 +1043,69 @@ def hapus_buku(buku_id, tema_id):
         db.session.commit()
         app.logger.info(f"Buku dihapus: {buku.judul}")
     return redirect(f'/tema/{tema_id}')
+
+@app.route('/buku/<int:buku_id>')
+def detail_buku(buku_id):
+    is_admin = session.get('is_admin')
+    buku = Buku.query.get_or_404(buku_id)
+    catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.id.asc()).all()
+    app.logger.info(f"Mengakses buku: {buku.judul}")
+    return render_template_string(HTML_BUKU_DETAIL, buku=buku, catatan_list=catatan_list, is_admin=is_admin)
+
+@app.route('/tambah-catatan', methods=['POST'])
+def tambah_catatan():
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    buku_id = request.form.get('buku_id')
+    bagian = request.form.get('bagian', '')
+    judul_bab = request.form.get('judul_bab')
+    isi = request.form.get('isi')
+    if buku_id and judul_bab and isi:
+        catatan_baru = Catatan(buku_id=int(buku_id), bagian=bagian, judul_bab=judul_bab, isi=isi)
+        db.session.add(catatan_baru)
+        db.session.commit()
+        app.logger.info(f"Bab baru berhasil ditambahkan ke buku ID {buku_id}: {judul_bab}")
+    return redirect(f'/buku/{buku_id}')
+
+@app.route('/hapus-catatan/<int:catatan_id>/<int:buku_id>', methods=['POST'])
+def hapus_catatan(catatan_id, buku_id):
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    catatan = Catatan.query.get(catatan_id)
+    if catatan:
+        db.session.delete(catatan)
+        db.session.commit()
+        app.logger.info(f"Catatan bab dihapus: {catatan.judul_bab}")
+    return redirect(f'/buku/{buku_id}')
+
+@app.route('/export-buku/<int:buku_id>')
+def export_buku(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.id.asc()).all()
+    
+    teks_export = f"JUDUL BUKU: {buku.judul}\n"
+    if buku.subjudul:
+        teks_export += f"SUBJUDUL: {buku.subjudul}\n"
+    if buku.kutipan:
+        teks_export += f"KUTIPAN: \"{buku.kutipan}\"\n"
+    teks_export += "="*50 + "\n\n"
+    
+    for c in catatan_list:
+        if c.bagian:
+            teks_export += f"[{c.bagian}] "
+        teks_export += f"{c.judul_bab}\n"
+        teks_export += "-"*30 + "\n"
+        teks_export += f"{c.isi}\n\n"
+        teks_export += "="*50 + "\n\n"
+        
+    nama_file = re.sub(r'[^a-zA-Z0-9_]', '', buku.judul.replace(' ', '_')) + ".txt"
+    app.logger.info(f"Mengexport buku: {buku.judul}")
+    
+    return Response(
+        teks_export,
+        mimetype='text/plain',
+        headers={'Content-Disposition': f'attachment;filename={nama_file}'}
+    )
 
 @app.route('/statistik')
 def statistik():
