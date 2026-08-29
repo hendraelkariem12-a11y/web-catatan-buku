@@ -48,10 +48,26 @@ UPLOAD_PDF_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'up
 os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 
 # ==================================================
-# KONFIGURASI DATABASE AMAN (RAILWAY PERSISTENT)
+# KONFIGURASI DATABASE TURSO CLOUD / LOCAL FALLBACK
 # ==================================================
-db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'karya_buku.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
+TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
+
+if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+    # Koneksi Turso Cloud menggunakan libsql
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+{TURSO_DATABASE_URL}?secure=true"
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "connect_args": {
+            "auth_token": TURSO_AUTH_TOKEN
+        }
+    }
+    database_info = "Turso Cloud Database"
+else:
+    # Fallback ke SQLite lokal jika dijalankan offline tanpa env
+    db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'karya_buku.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    database_info = "SQLite Lokal"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
@@ -131,7 +147,7 @@ with app.app_context():
             Tema(nama='Komunikasi')
         ])
         db.session.commit()
-    app.logger.info("Database berhasil diinisialisasi di Railway.")
+    app.logger.info(f"Database berhasil diinisialisasi menggunakan: {database_info}")
 
 @app.route('/profile.jpg')
 def serve_profile():
