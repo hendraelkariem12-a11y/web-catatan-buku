@@ -1,29 +1,28 @@
 import os
 import json
-import re
 from datetime import datetime
-from flask import Flask, request, redirect, render_template_string, session, Response, send_from_directory, flash
+from flask import Flask, request, redirect, render_template_string, session, Response, flash
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
-# --------------------------------------------------
+# ==================================================
 # KONFIGURASI DATABASE
-# --------------------------------------------------
+# ==================================================
 db_path = os.path.join('/tmp', 'karya_buku.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 1 hari
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
 db = SQLAlchemy(app)
 
 ADMIN_USER = "dede"
 ADMIN_PASS = "suhendra123"
 
-# --------------------------------------------------
-# MODEL DATABASE (DITAMBAH Fitur Baru)
-# --------------------------------------------------
+# ==================================================
+# MODEL DATABASE (DITAMBAH SEMUA FITUR BARU)
+# ==================================================
 class Tema(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nama = db.Column(db.String(100), nullable=False)
@@ -37,11 +36,10 @@ class Buku(db.Model):
     subjudul = db.Column(db.String(250), nullable=True)
     kutipan = db.Column(db.Text, nullable=True)
     tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=False)
-    status = db.Column(db.String(20), default='selesai')  # draf, sedang, selesai, arsip
+    status = db.Column(db.String(20), default='selesai')
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     catatan_list = db.relationship('Catatan', backref='buku', lazy=True, cascade="all, delete-orphan")
-    versi_list = db.relationship('VersiCatatan', backref='buku', lazy=True, cascade="all, delete-orphan")
 
 class Catatan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -52,7 +50,7 @@ class Catatan(db.Model):
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     favorit = db.Column(db.Boolean, default=False)
-    tag = db.Column(db.String(200), nullable=True)  # dipisahkan koma: penting, ide, selesai
+    tag = db.Column(db.String(200), nullable=True)
 
 class EsaiPenulis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,27 +62,16 @@ class EsaiPenulis(db.Model):
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     favorit = db.Column(db.Boolean, default=False)
 
-# === MODEL BARU: Tong Sampah, Versi, Tag, Statistik ===
 class TongSampah(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    tipe = db.Column(db.String(20), nullable=False)  # tema, buku, catatan, esai
+    tipe = db.Column(db.String(20), nullable=False)
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
-    dihapus_oleh = db.Column(db.String(50), default='admin')
-
-class VersiCatatan(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=True)
-    catatan_id = db.Column(db.Integer, nullable=True)
-    isi_lama = db.Column(db.Text, nullable=False)
-    judul_lama = db.Column(db.String(200), nullable=True)
-    diubah_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PengaturanPengguna(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    mode_tema = db.Column(db.String(20), default='terang')  # terang, gelap
-    ukuran_font = db.Column(db.String(20), default='normal')  # kecil, normal, besar
-    dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
+    mode_tema = db.Column(db.String(20), default='terang')
+    ukuran_font = db.Column(db.String(20), default='normal')
 
 with app.app_context():
     db.create_all()
@@ -100,9 +87,9 @@ with app.app_context():
 def serve_profile():
     return send_from_directory('.', 'profile.jpg')
 
-# --------------------------------------------------
+# ==================================================
 # FUNGSI PEMBANTU
-# --------------------------------------------------
+# ==================================================
 def ambil_pengaturan():
     pengaturan = PengaturanPengguna.query.first()
     if not pengaturan:
@@ -111,9 +98,14 @@ def ambil_pengaturan():
         db.session.commit()
     return pengaturan
 
-# --------------------------------------------------
-# TEMPLATE HTML LENGKAP DENGAN SEMUA FITUR
-# --------------------------------------------------
+def masukkan_sampah(tipe, data_dict):
+    item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
+    db.session.add(item)
+    db.session.commit()
+
+# ==================================================
+# TEMPLATE HTML — LENGKAP DENGAN SEMUA FITUR
+# ==================================================
 
 HTML_INDEX = """
 <!DOCTYPE html>
@@ -127,19 +119,13 @@ HTML_INDEX = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { 
-            --bg-paper: #f7f4ef; 
-            --card-paper: #ffffff; 
-            --text-main: #2c2a29; 
+            --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #2c2a29; 
             --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7);
             --border-color: rgba(212, 175, 55, 0.3);
-            --shadow-color: rgba(0,0,0,0.03);
         }
         [data-theme="gelap"] {
-            --bg-paper: #0f172a;
-            --card-paper: #1e293b;
-            --text-main: #f8fafc;
+            --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc;
             --border-color: rgba(148, 163, 184, 0.3);
-            --shadow-color: rgba(0,0,0,0.2);
         }
         body { 
             background-color: var(--bg-paper) !important; 
@@ -148,41 +134,28 @@ HTML_INDEX = """
             transition: all 0.3s ease;
             font-size: {{ '0.9rem' if pengaturan.ukuran_font == 'kecil' else '1rem' if pengaturan.ukuran_font == 'normal' else '1.1rem' }};
         }
-        .header-title { font-family: 'Cinzel', serif; font-weight: 700; color: #1e293b; }
-        [data-theme="gelap"] .header-title { color: #f1f5f9; }
-        .top-badge { background: #fcf8ec; color: #b38728; border: 1px solid rgba(212, 175, 55, 0.4); font-weight: 700; padding: 6px 16px; border-radius: 30px; font-size: 0.8rem; letter-spacing: 1px; display: inline-block; }
-        .card-gold { 
-            background: var(--card-paper); 
-            border-radius: 18px; 
-            border: 1px solid var(--border-color); 
-            box-shadow: 0 10px 25px var(--shadow-color); 
-            transition: all 0.3s ease; 
-            position: relative; 
-            overflow: hidden; 
-        }
-        .card-gold::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--gold-gradient); }
-        .card-gold:hover { transform: translateY(-4px); box-shadow: 0 15px 30px rgba(212, 175, 55, 0.18); }
-        .card-penulis { background: linear-gradient(135deg, #ffffff 0%, #fcf8ec 100%); border: 2px solid rgba(212, 175, 55, 0.5); }
-        [data-theme="gelap"] .card-penulis { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
-        .title-gold { font-family: 'Cinzel', serif; font-weight: 700; color: #1e293b; }
-        [data-theme="gelap"] .title-gold { color: #f1f5f9; }
-        .search-box { position: relative; }
-        .search-box input { padding-left: 38px; }
-        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; }
-        .stat-card { background: var(--card-paper); border-radius: 12px; padding: 16px; text-align: center; border: 1px solid var(--border-color); }
-        .badge-count { background: #b38728; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; margin-left: 6px; }
-        .btn-mode-toggle { position: fixed; top: 15px; right: 15px; z-index: 100; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; }
-        .filter-tag { cursor: pointer; transition: all 0.2s; }
-        .filter-tag:hover, .filter-tag.active { background: #b38728; color: white; }
+        .header-title { font-family: 'Cinzel', serif; font-weight: 700; }
+        .top-badge { background: #fcf8ec; color: #b38728; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
+        .card-gold { background:var(--card-paper); border-radius:18px; border:1px solid var(--border-color); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
+        .card-gold::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:var(--gold-gradient); }
+        .card-gold:hover { transform:translateY(-4px); box-shadow:0 15px 30px rgba(212,175,55,0.18); }
+        .card-penulis { background:linear-gradient(135deg, #fff 0%, #fcf8ec 100%); border:2px solid rgba(212,175,55,0.5); }
+        [data-theme="gelap"] .card-penulis { background:linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+        .search-box { position:relative; }
+        .search-box input { padding-left:38px; }
+        .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; }
+        .badge-count { background:#b38728; color:white; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
+        .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:42px; height:42px; display:flex; align-items:center; justify-content:center; }
+        .filter-tag { cursor:pointer; transition:all 0.2s; }
+        .filter-tag:hover, .filter-tag.active { background:#b38728; color:white; }
     </style>
 </head>
 <body>
 <button class="btn btn-outline-warning btn-mode-toggle" onclick="toggleMode()">
-    <i class="fa-solid fa-moon" id="icon-mode"></i>
+    <i class="fa-solid {{ 'fa-sun' if pengaturan.mode_tema == 'gelap' else 'fa-moon' }}" id="icon-mode"></i>
 </button>
 
-<div class="container py-5" style="max-width: 850px;">
-    <!-- BAR ATAS: NAV & PENGATURAN -->
+<div class="container py-5" style="max-width:850px;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="/penulis" class="btn btn-outline-dark rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
         <div class="d-flex gap-2 align-items-center">
@@ -191,25 +164,23 @@ HTML_INDEX = """
             {% if is_admin %}
                 <a href="/backup" class="btn btn-outline-primary rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1"></i> Backup</a>
                 <a href="/pengaturan" class="btn btn-outline-dark rounded-pill btn-sm fw-bold"><i class="fa-solid fa-gear me-1"></i> Pengaturan</a>
-                <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout Admin</a>
+                <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
             {% else %}
-                <a href="/login" class="btn btn-outline-dark rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login Admin</a>
+                <a href="/login" class="btn btn-outline-dark rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
             {% endif %}
         </div>
     </div>
     
-    <!-- JUDUL -->
     <div class="text-center mb-5">
         <span class="top-badge mb-2">OFFICIAL VAULT</span>
         <h1 class="header-title h2 mb-2">Catatan & Karya Buku</h1>
         <p class="text-muted small">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
     </div>
 
-    <!-- KOTAK PENCARIAN & FILTER -->
     <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
         <div class="search-box mb-2">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="cari-input" class="form-control form-control-sm" placeholder="Cari judul, isi, kategori..." oninput="jalankanPencarian(this.value)">
+            <input type="text" id="cari-input" class="form-control form-control-sm" placeholder="Cari judul, kategori..." oninput="jalankanPencarian(this.value)">
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2">
             <span class="badge bg-light text-dark border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
@@ -219,25 +190,18 @@ HTML_INDEX = """
         </div>
     </div>
 
-    <!-- TAMBAH TEMA (ADMIN) -->
     {% if is_admin %}
     <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
-        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema / Kategori Baru</h6>
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema Baru</h6>
         <form action="/tambah-tema" method="POST" class="row g-2">
-            <div class="col-9">
-                <input type="text" name="nama" class="form-control form-control-sm" placeholder="Misal: Psikologi, Filsafat..." required>
-            </div>
-            <div class="col-3">
-                <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button>
-            </div>
+            <div class="col-9"><input type="text" name="nama" class="form-control form-control-sm" placeholder="Misal: Psikologi..." required></div>
+            <div class="col-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button></div>
         </form>
     </div>
     {% endif %}
 
-    <!-- DAFTAR KATEGORI -->
-    <h5 class="fw-bold mb-3" style="font-family: 'Cinzel', serif; color: #1e293b;">Pilih Kategori Karya:</h5>
+    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
     <div class="row g-3" id="daftar-kategori">
-        <!-- Kartu Khusus Esai & Refleksi Penulis -->
         <div class="col-12 kategori-item" data-nama="Jurnal & Esai">
             <a href="/catatan-penulis" class="text-decoration-none">
                 <div class="card-gold card-penulis p-4">
@@ -246,8 +210,8 @@ HTML_INDEX = """
                             <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
                             <div>
                                 <span class="badge bg-warning text-dark fw-bold mb-1">Ruang Refleksi</span>
-                                <h4 class="title-gold h5 mb-1">✍️ Jurnal & Esai Bebas Penulis <span class="badge-count">{{ jumlah_esai }}</span></h4>
-                                <p class="text-muted small mb-0">Kumpulan perenungan harian, ide acak, & artikel bebas Dede Suhendra.</p>
+                                <h4 class="h5 mb-1">✍️ Jurnal & Esai Bebas <span class="badge-count">{{ jumlah_esai }}</span></h4>
+                                <p class="text-muted small mb-0">Kumpulan perenungan harian & ide acak.</p>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
@@ -262,18 +226,15 @@ HTML_INDEX = """
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <a href="/tema/{{ tema.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1">
                         <i class="fa-solid fa-folder-open text-warning me-3 fs-4"></i>
-                        <h4 class="title-gold h5 mb-0">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
+                        <h4 class="h5 mb-0">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
                     </a>
                     {% if is_admin %}
-                    <div class="d-flex gap-1">
-                        <a href="/edit-tema/{{ tema.id }}" class="btn btn-sm btn-link text-primary p-0"><i class="fa-solid fa-pen-to-square"></i></a>
-                        <form action="/hapus-tema/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus tema beserta seluruh buku di dalamnya?');">
-                            <button type="submit" class="btn btn-link text-danger p-0 ms-1"><i class="fa-solid fa-trash"></i></button>
-                        </form>
-                    </div>
+                    <form action="/hapus-tema/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                        <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
+                    </form>
                     {% endif %}
                 </div>
-                <small class="text-muted ms-4">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }} &middot; Lihat Koleksi Buku &rarr;</small>
+                <small class="text-muted ms-4">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }} &rarr;</small>
             </div>
         </div>
         {% endfor %}
@@ -281,33 +242,23 @@ HTML_INDEX = """
 </div>
 
 <script>
-// TEMA GELAP / TERANG
 function toggleMode() {
     const html = document.documentElement;
     const baru = html.getAttribute('data-theme') === 'gelap' ? 'terang' : 'gelap';
     html.setAttribute('data-theme', baru);
-    document.getElementById('icon-mode').className = baru === 'gelap' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-    fetch('/set-mode?mode=' + baru);
+    location.href = '/set-mode?mode=' + baru;
 }
-document.getElementById('icon-mode').className = 
-    document.documentElement.getAttribute('data-theme') === 'gelap' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-
-// PENCARIAN & FILTER
 function jalankanPencarian(kata) {
-    const items = document.querySelectorAll('.kategori-item');
-    const kataLow = kata.toLowerCase();
-    items.forEach(item => {
+    document.querySelectorAll('.kategori-item').forEach(item => {
         const nama = item.getAttribute('data-nama').toLowerCase();
-        item.style.display = kata === '' || nama.includes(kataLow) ? '' : 'none';
+        item.style.display = kata === '' || nama.includes(kata.toLowerCase()) ? '' : 'none';
     });
 }
 function filterKategori(nama) {
     document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
     document.querySelector(`[data-filter="${nama}"]`).classList.add('active');
-    const items = document.querySelectorAll('.kategori-item');
-    items.forEach(item => {
-        const n = item.getAttribute('data-nama');
-        item.style.display = nama === 'semua' || n === nama ? '' : 'none';
+    document.querySelectorAll('.kategori-item').forEach(item => {
+        item.style.display = nama === 'semua' || item.getAttribute('data-nama') === nama ? '' : 'none';
     });
 }
 </script>
@@ -325,32 +276,29 @@ HTML_PENGATURAN = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #2c2a29; --border-color: rgba(212, 175, 55, 0.3); }
-        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; --border-color: rgba(148, 163, 184, 0.3); }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding: 30px 15px; }
-        .card { background: var(--card-paper); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; --border-color: rgba(212,175,55,0.3); }
+        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
+        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
+        .card { background: var(--card-paper); border:1px solid var(--border-color); border-radius:16px; padding:24px; }
     </style>
 </head>
 <body>
-<div class="container" style="max-width: 500px;">
+<div class="container" style="max-width:500px;">
     <a href="/" class="btn btn-outline-secondary btn-sm mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
     <h3 class="mb-4">⚙️ Pengaturan Tampilan</h3>
-    
     <form method="POST">
-        <div class="card">
+        <div class="card mb-3">
             <h6 class="fw-bold mb-3">Tema Warna</h6>
             <select name="mode_tema" class="form-select mb-3">
                 <option value="terang" {% if pengaturan.mode_tema == 'terang' %}selected{% endif %}>☀️ Mode Terang</option>
                 <option value="gelap" {% if pengaturan.mode_tema == 'gelap' %}selected{% endif %}>🌙 Mode Gelap</option>
             </select>
-            
-            <h6 class="fw-bold mb-3 mt-4">Ukuran Font</h6>
+            <h6 class="fw-bold mb-3">Ukuran Font</h6>
             <select name="ukuran_font" class="form-select mb-3">
                 <option value="kecil" {% if pengaturan.ukuran_font == 'kecil' %}selected{% endif %}>Kecil</option>
                 <option value="normal" {% if pengaturan.ukuran_font == 'normal' %}selected{% endif %}>Normal</option>
                 <option value="besar" {% if pengaturan.ukuran_font == 'besar' %}selected{% endif %}>Besar</option>
             </select>
-            
             <button type="submit" class="btn btn-primary w-100 mt-2">Simpan Pengaturan</button>
         </div>
     </form>
@@ -365,57 +313,30 @@ HTML_STATISTIK = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Statistik Karya - Dede Suhendra</title>
+    <title>Statistik - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #2c2a29; --border-color: rgba(212, 175, 55, 0.3); }
+        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; }
         [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding: 30px 15px; }
-        .stat-card { background: var(--card-paper); border-radius: 16px; padding: 24px; text-align: center; border: 1px solid var(--border-color); margin-bottom: 20px; }
-        .stat-number { font-size: 42px; font-weight: 800; color: #b38728; }
+        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
+        .stat-card { background: var(--card-paper); border-radius:16px; padding:24px; text-align:center; border:1px solid rgba(212,175,55,0.3); margin-bottom:20px; }
+        .stat-number { font-size:42px; font-weight:800; color:#b38728; }
     </style>
 </head>
 <body>
-<div class="container" style="max-width: 600px;">
+<div class="container" style="max-width:600px;">
     <a href="/" class="btn btn-outline-secondary btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
-    <h3 class="mb-4 text-center">📊 Statistik Perpustakaan Karya</h3>
-    
+    <h3 class="mb-4 text-center">📊 Statistik Perpustakaan</h3>
     <div class="row g-3">
-        <div class="col-6">
-            <div class="stat-card">
-                <i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i>
-                <div class="stat-number">{{ total_tema }}</div>
-                <div class="text-muted">Kategori / Tema</div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="stat-card">
-                <i class="fa-solid fa-book fs-1 text-primary mb-2"></i>
-                <div class="stat-number">{{ total_buku }}</div>
-                <div class="text-muted">Jumlah Buku</div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="stat-card">
-                <i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i>
-                <div class="stat-number">{{ total_catatan }}</div>
-                <div class="text-muted">Catatan / Bab</div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="stat-card">
-                <i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i>
-                <div class="stat-number">{{ total_esai }}</div>
-                <div class="text-muted">Esai / Jurnal</div>
-            </div>
-        </div>
+        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i><div class="stat-number">{{ total_tema }}</div><div class="text-muted">Kategori</div></div></div>
+        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-book fs-1 text-primary mb-2"></i><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Jumlah Buku</div></div></div>
+        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Catatan / Bab</div></div></div>
+        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i><div class="stat-number">{{ total_esai }}</div><div class="text-muted">Esai / Jurnal</div></div></div>
     </div>
-    
     <div class="stat-card mt-4">
-        <h6 class="fw-bold mb-3">📅 Ringkasan Bulan Ini</h6>
-        <p class="mb-1">Buku baru bulan ini: <strong>{{ buku_bulan_ini }}</strong></p>
-        <p class="mb-1">Esai baru bulan ini: <strong>{{ esai_bulan_ini }}</strong></p>
+        <h6 class="fw-bold mb-3">📅 Bulan Ini</h6>
+        <p>Buku baru: <strong>{{ buku_bulan_ini }}</strong> &nbsp;|&nbsp; Esai baru: <strong>{{ esai_bulan_ini }}</strong></p>
         <p class="mb-0">Total kata diperkirakan: <strong>{{ total_kata }}</strong> kata</p>
     </div>
 </div>
@@ -433,29 +354,28 @@ HTML_TONG_SAMPAH = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #2c2a29; --border-color: rgba(212, 175, 55, 0.3); }
+        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; }
         [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding: 30px 15px; }
-        .card { background: var(--card-paper); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
+        .card { background: var(--card-paper); border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:16px; margin-bottom:12px; }
     </style>
 </head>
 <body>
-<div class="container" style="max-width: 700px;">
+<div class="container" style="max-width:700px;">
     <a href="/" class="btn btn-outline-secondary btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
     <h4 class="mb-4">🗑️ Tong Sampah</h4>
-    <p class="text-muted small mb-4">Item yang dihapus dalam 30 hari terakhir dapat dipulihkan. Hapus permanen untuk hilangkan selamanya.</p>
-    
+    <p class="text-muted small mb-4">Item bisa dipulihkan dalam 30 hari.</p>
     {% if sampah_list %}
         {% for item in sampah_list %}
         <div class="card d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <span class="badge bg-secondary me-2">{{ item.tipe }}</span>
-                <span>{{ item.data_json|safe }}</span>
+                <span>{{ item.data_json }}</span>
                 <div class="text-muted small mt-1">Dihapus: {{ item.dihapus_pada.strftime('%d %b %Y %H:%M') }}</div>
             </div>
             <div class="d-flex gap-2">
-                <a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left me-1"></i> Pulihkan</a>
-                <a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen? Tidak bisa dikembalikan!')"><i class="fa-solid fa-trash-xmark"></i></a>
+                <a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i> Pulihkan</a>
+                <a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen?')"><i class="fa-solid fa-trash-xmark"></i></a>
             </div>
         </div>
         {% endfor %}
@@ -463,10 +383,7 @@ HTML_TONG_SAMPAH = """
             <button type="submit" class="btn btn-danger w-100 mt-3">🗑️ Kosongkan Tong Sampah</button>
         </form>
     {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="fa-solid fa-trash-can-check fs-1 mb-2"></i>
-            <p>Tong sampah kosong.</p>
-        </div>
+        <div class="text-center py-5 text-muted"><i class="fa-solid fa-trash-can-check fs-1 mb-2"></i><p>Tong sampah kosong.</p></div>
     {% endif %}
 </div>
 </body>
@@ -483,91 +400,84 @@ HTML_PENULIS = """
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
-        .container { max-width: 760px; margin: 0 auto; }
-        .btn-back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
-        .btn-back:hover { color: var(--accent); }
-        .card-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .card-title { font-size: 18px; font-weight: 800; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; }
-        .card-p { color: #cbd5e1; font-size: 14px; margin-bottom: 12px; }
-        .timeline { position: relative; border-left: 2px solid var(--border); padding-left: 18px; margin-top: 10px; margin-left: 6px; }
-        .timeline-item { position: relative; margin-bottom: 16px; }
-        .timeline-item::before { content: ""; position: absolute; left: -24px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
-        .timeline-year { font-size: 12px; font-weight: 800; color: var(--accent); }
-        .timeline-title { font-size: 14px; font-weight: 700; color: var(--text); }
-        .timeline-desc { font-size: 13px; color: var(--muted); }
-        .list-custom { list-style: none; padding-left: 0; }
-        .list-custom li { font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding-left: 24px; position: relative; }
-        .list-custom li::before { content: "🎯"; position: absolute; left: 0; font-size: 13px; }
-        .appreciation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
-        .app-item { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 13px; color: #cbd5e1; }
-        .app-name { font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        * { box-sizing:border-box; margin:0; padding:0; font-family:'Plus Jakarta Sans',sans-serif; }
+        body { background:var(--bg); color:var(--text); padding:20px; line-height:1.6; }
+        .container { max-width:760px; margin:0 auto; }
+        .btn-back { display:inline-block; color:var(--muted); text-decoration:none; font-size:13px; font-weight:600; margin-bottom:20px; }
+        .btn-back:hover { color:var(--accent); }
+        .card-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:24px; box-shadow:0 4px 15px rgba(0,0,0,0.2); }
+        .card-title { font-size:18px; font-weight:800; color:var(--accent); margin-bottom:14px; display:flex; align-items:center; gap:8px; border-bottom:1px dashed var(--border); padding-bottom:10px; }
+        .card-p { color:#cbd5e1; font-size:14px; margin-bottom:12px; }
+        .timeline { position:relative; border-left:2px solid var(--border); padding-left:18px; margin-top:10px; margin-left:6px; }
+        .timeline-item { position:relative; margin-bottom:16px; }
+        .timeline-item::before { content:""; position:absolute; left:-24px; top:5px; width:10px; height:10px; border-radius:50%; background:var(--accent); }
+        .timeline-year { font-size:12px; font-weight:800; color:var(--accent); }
+        .timeline-title { font-size:14px; font-weight:700; color:var(--text); }
+        .timeline-desc { font-size:13px; color:var(--muted); }
+        .list-custom { list-style:none; padding-left:0; }
+        .list-custom li { font-size:14px; color:#cbd5e1; margin-bottom:10px; padding-left:24px; position:relative; }
+        .list-custom li::before { content:"🎯"; position:absolute; left:0; font-size:13px; }
+        .appreciation-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; margin-top:10px; }
+        .app-item { background:#0f172a; border:1px solid var(--border); border-radius:10px; padding:14px; font-size:13px; color:#cbd5e1; }
+        .app-name { font-weight:700; color:var(--accent); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
     </style>
 </head>
 <body>
 <div class="container">
     <a href="/" class="btn-back">&larr; Kembali ke Utama</a>
-
-    <div class="card-box" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 3px solid #38bdf8; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2); margin: 0 auto; display: block;">
-        <div style="flex: 1; min-width: 250px;">
-            <h2 class="card-title" style="border-bottom: none; padding-bottom: 0; margin-bottom: 8px;">👨‍💻 Profil Penulis</h2>
-            <p class="card-p">Selamat datang di ruang pustaka pribadi karya dan catatan saya. Perkenalkan, nama saya <strong>Dede Suhendra</strong>, lahir pada tanggal <strong>8 Juli 2001</strong> dan berasal dari <strong>Subang</strong>.</p>
-            <p class="card-p" style="margin-bottom: 0;">Halaman ini dihadirkan sebagai wadah dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun secara terstruktur.</p>
+    <div class="card-box" style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" style="width:140px; height:140px; border-radius:50%; object-fit:cover; border:3px solid #38bdf8; margin:0 auto; display:block;">
+        <div style="flex:1; min-width:250px;">
+            <h2 class="card-title" style="border-bottom:none; padding-bottom:0; margin-bottom:8px;">👨‍💻 Profil Penulis</h2>
+            <p class="card-p">Selamat datang di ruang pustaka pribadi karya dan catatan saya. Nama saya <strong>Dede Suhendra</strong>, lahir 8 Juli 2001, dari Subang.</p>
+            <p class="card-p" style="margin-bottom:0;">Dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun terstruktur.</p>
         </div>
     </div>
-
     <div class="card-box">
         <h2 class="card-title">✍️ Perjuangan & Latar Belakang Penulisan</h2>
-        <p class="card-p">Setiap tulisan dan modul yang ada di dalam ruang ini lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian dan dinamika perjuangan hidup, saya memanfaatkan setiap sisa-sisa waktu luang yang ada untuk tetap konsisten menulis dan mendokumentasikan ilmu.</p>
-        <p class="card-p">Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana untuk merefleksikan setiap tahap pembelajaran hidup agar bermanfaat secara luas dan berkelanjutan.</p>
+        <p class="card-p">Setiap tulisan lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian, setiap sisa waktu luang dimanfaatkan untuk tetap konsisten menulis dan mendokumentasikan ilmu.</p>
+        <p class="card-p">Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana merefleksikan pembelajaran hidup agar bermanfaat secara luas dan berkelanjutan.</p>
     </div>
-
     <div class="card-box">
-        <h2 class="card-title">📜 Riwayat Pendidikan & Pengalaman Perjalanan</h2>
-        <h4 style="color: var(--accent); font-size: 14px; margin-top: 10px; margin-bottom: 10px;">🎓 Riwayat Pendidikan:</h4>
+        <h2 class="card-title">📜 Riwayat Pendidikan & Pengalaman</h2>
+        <h4 style="color:var(--accent); font-size:14px; margin-top:10px; margin-bottom:10px;">🎓 Pendidikan:</h4>
         <div class="timeline">
-            <div class="timeline-item"><div class="timeline-year">2013</div><div class="timeline-title">SDN Sindang Laut II</div><div class="timeline-desc">Lulus Pendidikan Sekolah Dasar</div></div>
-            <div class="timeline-item"><div class="timeline-year">2013 – 2015</div><div class="timeline-title">Pondok Pesantren Madinatul Musthofa</div><div class="timeline-desc">Menempuh Pendidikan Pesantren Tahap Awal</div></div>
-            <div class="timeline-item"><div class="timeline-year">2015 – 2016</div><div class="timeline-title">Pondok Tahfidz Qur'an</div><div class="timeline-desc">Fokus Menghafal Al-Qur'an</div></div>
-            <div class="timeline-item"><div class="timeline-year">2016 – 2019</div><div class="timeline-title">Pondok Pesantren Madinatul Musthofa</div><div class="timeline-desc">Melanjutkan Studi Keagamaan & Pesantren</div></div>
-            <div class="timeline-item"><div class="timeline-year">2019 – 2022</div><div class="timeline-title">Pondok Modern Darussalam Gontor</div><div class="timeline-desc">Menempuh Pendidikan di KMI Gontor</div></div>
-            <div class="timeline-item"><div class="timeline-year">2022 – 2023</div><div class="timeline-title">Pengabdian Gontor Kampus 2 & UNIDA Gontor</div><div class="timeline-desc">Mengabdi di PMDG Kampus 2 sambil menempuh kuliah Jurusan Studi Agama-Agama UNIDA Gontor</div></div>
-            <div class="timeline-item"><div class="timeline-year">2023 – 2025</div><div class="timeline-title">Pengajar Ponpes Madinatul Musthofa & STISQ AL-IHYA Subang</div><div class="timeline-desc">Mengajar di Ponpes Madinatun Mustofa sambil menempuh kuliah Jurusan Ilmu Al-Qur'an dan Tafsir (IAT) di STIESKU Subang</div></div>
+            <div class="timeline-item"><div class="timeline-year">2013</div><div class="timeline-title">SDN Sindang Laut II</div><div class="timeline-desc">Lulus SD</div></div>
+            <div class="timeline-item"><div class="timeline-year">2013–2015</div><div class="timeline-title">Ponpes Madinatul Musthofa</div><div class="timeline-desc">Pendidikan Pesantren</div></div>
+            <div class="timeline-item"><div class="timeline-year">2015–2016</div><div class="timeline-title">Pondok Tahfidz Qur'an</div><div class="timeline-desc">Fokus Menghafal Al-Qur'an</div></div>
+            <div class="timeline-item"><div class="timeline-year">2016–2019</div><div class="timeline-title">Ponpes Madinatul Musthofa</div><div class="timeline-desc">Studi Keagamaan</div></div>
+            <div class="timeline-item"><div class="timeline-year">2019–2022</div><div class="timeline-title">Pondok Modern Darussalam Gontor</div><div class="timeline-desc">Pendidikan KMI Gontor</div></div>
+            <div class="timeline-item"><div class="timeline-year">2022–2023</div><div class="timeline-title">Pengabdian Gontor & UNIDA Gontor</div><div class="timeline-desc">Mengabdi sambil kuliah</div></div>
+            <div class="timeline-item"><div class="timeline-year">2023–2025</div><div class="timeline-title">Pengajar Ponpes & STISQ AL-IHYA Subang</div><div class="timeline-desc">Mengajar sambil kuliah IAT</div></div>
         </div>
-        <h4 style="color: var(--accent); font-size: 14px; margin-top: 20px; margin-bottom: 10px;">💼 Pengalaman Kerja & Khidmat:</h4>
+        <h4 style="color:var(--accent); font-size:14px; margin-top:20px; margin-bottom:10px;">💼 Pengalaman Kerja & Khidmat:</h4>
         <div class="timeline">
-            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Gudang Shopee (Tangerang)</div><div class="timeline-desc">Pengalaman Kerja Operasional Logistik</div></div>
-            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Karyawan Fotokopi (Jakarta Pusat)</div><div class="timeline-desc">Menjaga & Mengelola Operasional Toko Fotokopi</div></div>
-            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Barista & Chef / Tukang Masak (Bogor)</div><div class="timeline-desc">Menggabungkan Peran Sebagai Barista Minuman & Penanggung Jawab Dapur Makanan</div></div>
-            <div class="timeline-item"><div class="timeline-year">Sekarang</div><div class="timeline-title">Imam dan Muadzin & Pengajar Al-Qur'an (Tangerang)</div><div class="timeline-desc">Mengurus Kemakmuran Masjid dan Mengajar Pengajian Al-Qur'an Anak-anak</div></div>
+            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Gudang Shopee Tangerang</div><div class="timeline-desc">Operasional Logistik</div></div>
+            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Karyawan Fotokopi Jakarta Pusat</div><div class="timeline-desc">Operasional Toko</div></div>
+            <div class="timeline-item"><div class="timeline-year">2025</div><div class="timeline-title">Barista & Chef Bogor</div><div class="timeline-desc">Minuman & Dapur</div></div>
+            <div class="timeline-item"><div class="timeline-year">Sekarang</div><div class="timeline-title">Imam, Muadzin & Pengajar Al-Qur'an Tangerang</div><div class="timeline-desc">Kemakmuran Masjid & Pengajian Anak-anak</div></div>
         </div>
     </div>
-
     <div class="card-box">
         <h2 class="card-title">🎯 Visi & Misi Penulisan</h2>
-        <p class="card-p"><strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri yang berkelanjutan, dan ladang manfaat yang terstruktur.</p>
-        <div style="margin-top: 10px;">
-            <p class="card-p"><strong>Misi:</strong></p>
-            <ul class="list-custom">
-                <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
-                <li>Mendokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
-                <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
-            </ul>
-        </div>
+        <p class="card-p"><strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri berkelanjutan, dan ladang manfaat terstruktur.</p>
+        <p class="card-p"><strong>Misi:</strong></p>
+        <ul class="list-custom">
+            <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
+            <li>Mendokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
+            <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
+        </ul>
     </div>
-
     <div class="card-box">
         <h2 class="card-title">🙏 Apresiasi & Rasa Syukur</h2>
-        <p class="card-p">Rasa syukur dan terima kasih yang mendalam saya persembahkan kepada orang-orang terkasih yang selalu menjadi sumber kekuatan, doa, dan inspirasi dalam hidup saya:</p>
+        <p class="card-p">Rasa syukur dan terima kasih kepada orang-orang terkasih yang menjadi sumber kekuatan, doa, dan inspirasi:</p>
         <div class="appreciation-grid">
-            <div class="app-item"><div class="app-name">👨‍👦 Bapak Khairudin</div><div>Selaku ayah tercinta yang senantiasa memberikan doa, kerja keras, dan bimbingan tanpa henti.</div></div>
-            <div class="app-item"><div class="app-name">💐 Ibu Sumini (Almarhumah)</div><div>Almarhumah ibu tercinta. Semoga Allah ﷻ mengampuni dosa-dosanya, mengangkat derajatnya, dan menempatkan beliau di tempat terbaik di sisi-Nya.</div></div>
-            <div class="app-item"><div class="app-name">👫 Siti Aisyah & Muhammad Naimul Ilmi</div><div>Adik-adik tersayang yang selalu menjadi kebanggaan dan penyemangat dalam melangkah.</div></div>
-            <div class="app-item"><div class="app-name">👦 Muhammad Aji</div><div>Kakak tercinta atas kebersamaan, support, dan persaudaraan yang luar biasa.</div></div>
-            <div class="app-item"><div class="app-name">❤️ Sri Nur Safitri</div><div>Kekasih tercinta yang selalu memberikan perhatian, dorongan semangat, dan menemani setiap proses perjalanan.</div></div>
-            <div class="app-item"><div class="app-name">🤝 Sahabat & Kolega</div><div>Seluruh teman-teman, guru-guru, rekan seperjuangan, dan kolega yang tidak bisa disebutkan satu per satu atas segala doa dan dukungannya.</div></div>
+            <div class="app-item"><div class="app-name">👨‍👦 Bapak Khairudin</div><div>Doa, kerja keras, dan bimbingan tanpa henti.</div></div>
+            <div class="app-item"><div class="app-name">💐 Ibu Sumini (Almarhumah)</div><div>Semoga Allah mengampuni dan menempatkan di tempat terbaik.</div></div>
+            <div class="app-item"><div class="app-name">👫 Siti Aisyah & Muhammad Naimul Ilmi</div><div>Adik-adik tersayang, kebanggaan dan penyemangat.</div></div>
+            <div class="app-item"><div class="app-name">👦 Muhammad Aji</div><div>Kakak tercinta atas kebersamaan dan dukungan.</div></div>
+            <div class="app-item"><div class="app-name">❤️ Sri Nur Safitri</div><div>Perhatian, dorongan semangat, dan pendamping setia.</div></div>
+            <div class="app-item"><div class="app-name">🤝 Sahabat & Kolega</div><div>Semua yang telah mendukung dan mendoakan.</div></div>
         </div>
     </div>
 </div>
@@ -581,40 +491,104 @@ HTML_ESAI_PENULIS = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jurnal & Esai Bebas - Dede Suhendra</title>
+    <title>Jurnal & Esai - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
-        body { background: var(--bg); color: var(--text); padding: 25px 15px; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .container { max-width: 760px; margin: 0 auto; }
-        .esai-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; }
-        .markdown-body { line-height: 1.8; color: #cbd5e1; }
-        .favorit-btn { position: absolute; top: 20px; right: 50px; font-size: 20px; cursor: pointer; }
-        .favorit-btn.aktif { color: #fbbf24; }
+        body { background:var(--bg); color:var(--text); padding:25px 15px; font-family:'Plus Jakarta Sans',sans-serif; }
+        .container { max-width:760px; margin:0 auto; }
+        .esai-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:24px; position:relative; }
+        .markdown-body { line-height:1.8; color:#cbd5e1; }
     </style>
 </head>
 <body>
 <div class="container">
     <a href="/" class="btn btn-outline-light btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
-
     <div class="bg-primary bg-opacity-10 border border-primary p-4 rounded-4 mb-4">
-        <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI HASIL PEMIKIRAN</span>
+        <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI</span>
         <h2 class="h3 fw-bold text-info mb-1">✍️ Jurnal & Esai Bebas Penulis</h2>
-        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian karya Dede Suhendra. Total: {{ esai_list|length }} karya.</p>
+        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian. Total: {{ esai_list|length }} karya.</p>
     </div>
-
-    <!-- PENCARIAN & FILTER -->
-    <div class="mb-4">
-        <input type="text" id="cari-esai" class="form-control bg-dark text-white border-secondary" placeholder="Cari judul atau isi esai..." oninput="filterEsai(this.value)">
-    </div>
-
+    <input type="text" class="form-control bg-dark text-white border-secondary mb-4" placeholder="🔍 Cari judul atau isi..." oninput="filterEsai(this.value)">
     {% if is_admin %}
     <div class="card bg-dark text-white border-secondary p-3 mb-4 rounded-3">
-        <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Jurnal / Esai Baru</h6>
+        <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai Baru</h6>
         <form action="/tambah-esai" method="POST">
-            <input type="text" name="judul" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Judul Esai / Catatan..." required>
-            <input type="text" name="kategori" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Kategori (Misal: Hikmah Harian, Rekomendasi Buku)...">
-            <textarea name="isi" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" rows="4" placeholder="Tuliskan ide / esai be
+            <input type="text" name="judul" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Judul..." required>
+            <input type="text" name="kategori" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Kategori: Refleksi, Ide, dll.">
+            <textarea name="isi" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" rows="4" placeholder="Tulis catatan (Markdown didukung)..." required></textarea>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan Catatan</button>
+        </form>
+    </div>
+    {% endif %}
+    {% for e in esai_list %}
+    <div class="esai-card esai-item">
+        {% if is_admin %}
+        <form action="/hapus-esai/{{ e.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
+            <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
+        </form>
+        {% endif %}
+        <span class="badge bg-info text-dark mb-2">{{ e.kategori }}</span>
+        <h4 class="text-info fw-bold mb-3 esai-judul">{{ e.judul }}</h4>
+        <div class="markdown-body">{{ e.isi|safe }}</div>
+        <div class="text-muted small mt-3">Dibuat: {{ e.dibuat_pada.strftime('%d %b %Y %H:%M') if e.dibuat_pada else '-' }}</div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 bg-dark bg-opacity-50 rounded-4 border border-secondary">
+        <i class="fa-solid fa-feather fs-1 text-muted mb-2"></i>
+        <p class="text-muted mb-0">Belum ada jurnal atau esai.</p>
+    </div>
+    {% endfor %}
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    filterEsai = function(kata) {
+        document.querySelectorAll('.esai-item').forEach(item => {
+            const judul = item.querySelector('.esai-judul').textContent.toLowerCase();
+            item.style.display = kata === '' || judul.includes(kata.toLowerCase()) ? '' : 'none';
+        });
+    };
+});
+</script>
+</body>
+</html>
+"""
+
+HTML_TEMA = """
+<!DOCTYPE html>
+<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tema: {{ tema.nama }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7); }
+        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
+        body { background:var(--bg-paper) !important; font-family:'Plus Jakarta Sans',sans-serif; color:var(--text-main); }
+        .card-buku-gold { background:var(--card-paper); border-radius:16px; border:1px solid rgba(212,175,55,0.3); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
+        .card-buku-gold::before { content:''; position:absolute; top:0; left:0; width:5px; height:100%; background:var(--gold-gradient); }
+        .card-buku-gold:hover { transform:translateY(-3px); box-shadow:0 15px 30px rgba(212,175,55,0.15); }
+    </style>
+</head>
+<body>
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-outline-dark rounded-pill btn-sm px-4 mb-4 shadow-sm" style="font-weight:600;"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Semua Tema</a>
+    <div class="bg-white rounded-4 p-4 mb-4 shadow-sm border" style="border-color:rgba(212,175,55,0.3)!important;">
+        <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-folder-open me-1"></i> Kategori Karya</span>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{ tema.nama }}</h2>
+        <small class="text-muted">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y %H:%M') if tema.dibuat_pada else '-' }} &nbsp;|&nbsp; Jumlah Buku: {{ buku_list|length }}</small>
+    </div>
+    {% if is_admin %}
+    <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-book-medical me-1"></i> Tambah Buku Baru</h6>
+        <form action="/tambah-buku" method="POST" class="row g-2">
+            <input type="hidden" name="tema_id" value="{{ tema.id }}">
+            <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
+            <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul (Opsional)"></div>
+            <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2
