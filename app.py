@@ -244,6 +244,29 @@ CSS_SHARED = """
     .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper) !important; border: 2px solid #b38728 !important; color: #b38728 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .filter-tag { cursor:pointer; transition:all 0.2s; background: var(--card-paper) !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
     .filter-tag:hover, .filter-tag.active { background:#b38728 !important; color:white !important; }
+
+    /* PERBAIKAN CSS BADGE & JUDUL BAB AGAR TIDAK TUMPANG TINDIH */
+    .note-card-badge {
+        display: block;
+        width: fit-content;
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8 !important;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: 6px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+    }
+    .note-card-title {
+        color: #b38728 !important;
+        font-size: 20px;
+        font-weight: 800;
+        margin-top: 4px;
+        margin-bottom: 12px;
+        padding-right: 90px;
+    }
 """
 
 JS_THEME_SCRIPT = """
@@ -828,8 +851,8 @@ HTML_BUKU_DETAIL = """
                     {% endif %}
                 </div>
 
-                {% if cat.bagian %}<span class="badge bg-secondary mb-1">{{ cat.bagian }}</span>{% endif %}
-                <h4 class="h5 fw-bold text-warning mb-3">{{ cat.judul_bab }}</h4>
+                {% if cat.bagian %}<span class="note-card-badge">{{ cat.bagian }}</span>{% endif %}
+                <h4 class="note-card-title">{{ cat.judul_bab }}</h4>
                 <div class="markdown-body text-main" id="content-catatan-{{ cat.id }}"></div>
                 <textarea id="raw-catatan-{{ cat.id }}" style="display:none;">{{ cat.isi }}</textarea>
                 <div class="text-muted small mt-3">Dibuat: {{ cat.dibuat_pada.strftime('%d %b %Y %H:%M') if cat.dibuat_pada else '-' }}</div>
