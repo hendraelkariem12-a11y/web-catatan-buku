@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import logging
 from io import BytesIO
 from html import escape
 from datetime import datetime
@@ -17,6 +18,11 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
+# KONFIGURASI LOGGING SISTEM
+# ==================================================
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+
+# ==================================================
 # KONFIGURASI DATABASE AMAN VERCEL / RAILWAY
 # ==================================================
 db_path = os.path.join('/tmp', 'karya_buku.db')
@@ -27,7 +33,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 db = SQLAlchemy(app)
 
 ADMIN_USER = "dede"
-# KEAMANAN: Password admin di-hash secara otomatis, tidak disimpan dalam teks polos
 ADMIN_PASS_HASH = generate_password_hash("suhendra123")
 
 # ==================================================
@@ -87,6 +92,7 @@ with app.app_context():
             Tema(nama='Komunikasi')
         ])
         db.session.commit()
+    app.logger.info("Database berhasil diinisialisasi.")
 
 @app.route('/profile.jpg')
 def serve_profile():
@@ -96,6 +102,56 @@ def masukkan_sampah(tipe, data_dict):
     item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
     db.session.add(item)
     db.session.commit()
+
+# ==================================================
+# CUSTOM ERROR HANDLERS (404 & 500)
+# ==================================================
+
+@app.errorhandler(404)
+def halaman_tidak_ditemukan(e):
+    app.logger.warning(f"404 Not Found: {request.path}")
+    return """
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>404 - Halaman Tidak Ditemukan</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body style="background:#0b132b; color:#f8fafc; display:flex; justify-content:center; align-items:center; min-height:100vh; text-align:center; font-family:'Plus Jakarta Sans',sans-serif;">
+        <div style="max-width:450px; padding:30px; background:#1c2541; border:1px solid #334155; border-radius:18px;">
+            <h1 class="text-warning fw-bold mb-2" style="font-size: 64px;">404</h1>
+            <h4 class="mb-3 fw-bold">Halaman Tidak Ditemukan</h4>
+            <p class="text-muted small mb-4">Maaf, tautan atau catatan yang Abang tuju tidak tersedia di server.</p>
+            <a href="/" class="btn btn-outline-warning rounded-pill px-4 fw-bold text-white">&larr; Kembali ke Beranda</a>
+        </div>
+    </body>
+    </html>
+    """, 404
+
+@app.errorhandler(500)
+def kesalahan_server(e):
+    app.logger.error(f"500 Internal Error: {str(e)}")
+    return """
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>500 - Kesalahan Server</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body style="background:#0b132b; color:#f8fafc; display:flex; justify-content:center; align-items:center; min-height:100vh; text-align:center; font-family:'Plus Jakarta Sans',sans-serif;">
+        <div style="max-width:450px; padding:30px; background:#1c2541; border:1px solid #334155; border-radius:18px;">
+            <h1 class="text-danger fw-bold mb-2" style="font-size: 64px;">500</h1>
+            <h4 class="mb-3 fw-bold">Terjadi Kesalahan Server</h4>
+            <p class="text-muted small mb-4">Sistem mengalami gangguan saat memproses permintaan Abang.</p>
+            <a href="/" class="btn btn-outline-light rounded-pill px-4 fw-bold">&larr; Kembali ke Beranda</a>
+        </div>
+    </body>
+    </html>
+    """, 500
 
 # ==================================================
 # CSS & JAVASCRIPT SHARED
@@ -750,11 +806,12 @@ HTML_LOGIN = """
 """
 
 # ==================================================
-# ROUTING APLIKASI PYTHON FLASK (DENGAN KEAMANAN HASHING)
+# ROUTING APLIKASI PYTHON FLASK
 # ==================================================
 
 @app.route('/')
 def index():
+    app.logger.info("Mengakses Halaman Utama")
     is_admin = session.get('is_admin')
     tema_list = Tema.query.order_by(Tema.id.asc()).all()
     jumlah_esai = EsaiPenulis.query.count()
@@ -787,7 +844,6 @@ def cetak_esai_pdf(esai_id):
         meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor='#64748b', spaceAfter=15)
         body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=10, leading=15, textColor='#1e293b')
         
-        # Keamanan: Sanitasi teks menggunakan escape()
         judul_bersih = escape(esai.judul)
         kategori_bersih = escape(esai.kategori)
         isi_bersih = escape(esai.isi).replace('\n', '<br/>')
@@ -807,6 +863,7 @@ def cetak_esai_pdf(esai_id):
             
         return send_file(buffer, as_attachment=True, download_name=f"{nama_file_safe}.pdf", mimetype='application/pdf')
     except Exception as e:
+        app.logger.error(f"Gagal mencetak PDF esai ID {esai_id}: {str(e)}")
         return f"<div style='padding:20px; font-family:sans-serif;'><h3>⚠️ Gagal Membuat PDF</h3><p>Error: {str(e)}</p><a href='/catatan-penulis'>Kembali</a></div>", 500
 
 @app.route('/tambah-esai', methods=['POST'])
@@ -820,6 +877,7 @@ def tambah_esai():
         e = EsaiPenulis(judul=judul, kategori=kategori, isi=isi)
         db.session.add(e)
         db.session.commit()
+        app.logger.info(f"Esai baru berhasil ditambahkan: {judul}")
     return redirect('/catatan-penulis')
 
 @app.route('/hapus-esai/<int:esai_id>', methods=['POST'])
@@ -831,6 +889,7 @@ def hapus_esai(esai_id):
         masukkan_sampah('esai', {'judul': e.judul, 'kategori': e.kategori, 'isi': e.isi})
         db.session.delete(e)
         db.session.commit()
+        app.logger.info(f"Esai dihapus (masuk tong sampah): {e.judul}")
     return redirect('/catatan-penulis')
 
 @app.route('/tema/<int:tema_id>')
@@ -848,6 +907,7 @@ def tambah_tema():
     if nama:
         db.session.add(Tema(nama=nama))
         db.session.commit()
+        app.logger.info(f"Tema baru ditambahkan: {nama}")
     return redirect('/')
 
 @app.route('/hapus-tema/<int:tema_id>', methods=['POST'])
@@ -859,6 +919,7 @@ def hapus_tema(tema_id):
         masukkan_sampah('tema', {'nama': tema.nama})
         db.session.delete(tema)
         db.session.commit()
+        app.logger.info(f"Tema dihapus: {tema.nama}")
     return redirect('/')
 
 @app.route('/tambah-buku', methods=['POST'])
@@ -873,6 +934,7 @@ def tambah_buku():
         buku_baru = Buku(judul=judul, subjudul=subjudul, tema_id=int(tema_id), kutipan=kutipan)
         db.session.add(buku_baru)
         db.session.commit()
+        app.logger.info(f"Buku baru ditambahkan: {judul}")
     return redirect(f'/tema/{tema_id}')
 
 @app.route('/hapus-buku/<int:buku_id>/<int:tema_id>', methods=['POST'])
@@ -884,6 +946,7 @@ def hapus_buku(buku_id, tema_id):
         masukkan_sampah('buku', {'judul': buku.judul, 'subjudul': buku.subjudul})
         db.session.delete(buku)
         db.session.commit()
+        app.logger.info(f"Buku dihapus: {buku.judul}")
     return redirect(f'/tema/{tema_id}')
 
 @app.route('/statistik')
@@ -919,6 +982,7 @@ def pulihkan(item_id):
         db.session.add(EsaiPenulis(judul=data['judul'], kategori=data.get('kategori', 'Refleksi'), isi=data['isi']))
     db.session.delete(item)
     db.session.commit()
+    app.logger.info(f"Item sampah dipulihkan (tipe: {item.tipe})")
     return redirect('/tong-sampah')
 
 @app.route('/hapus-permanen/<int:item_id>')
@@ -928,6 +992,7 @@ def hapus_permanen(item_id):
     item = TongSampah.query.get_or_404(item_id)
     db.session.delete(item)
     db.session.commit()
+    app.logger.info("Item dihapus permanen dari tong sampah.")
     return redirect('/tong-sampah')
 
 @app.route('/kosongkan-tong-sampah', methods=['POST'])
@@ -936,9 +1001,9 @@ def kosongkan_tong_sampah():
         return "Akses Ditolak", 403
     TongSampah.query.delete()
     db.session.commit()
+    app.logger.info("Tong sampah dikosongkan.")
     return redirect('/tong-sampah')
 
-# KEAMANAN LOGIN: Menggunakan check_password_hash untuk verifikasi aman
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -946,13 +1011,16 @@ def login():
         pwd = request.form.get('password')
         if user == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, pwd):
             session['is_admin'] = True
+            app.logger.info(f"Admin '{user}' berhasil login.")
             return redirect('/')
         else:
+            app.logger.warning(f"Gagal login untuk username: {user}")
             return render_template_string(HTML_LOGIN, error="Username atau Password salah!")
     return render_template_string(HTML_LOGIN, error=None)
 
 @app.route('/logout')
 def logout():
+    app.logger.info("Admin melakukan logout.")
     session.pop('is_admin', None)
     return redirect('/')
 
@@ -966,6 +1034,7 @@ def backup_db():
         "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()],
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
+    app.logger.info("Database berhasil di-backup.")
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
 @app.route('/restore', methods=['POST'])
@@ -988,6 +1057,7 @@ def restore_db():
             if not EsaiPenulis.query.get(e['id']):
                 db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
         db.session.commit()
+        app.logger.info("Database berhasil di-restore dari file JSON.")
     return redirect('/')
 
 if __name__ == '__main__':
