@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from flask import Flask, request, redirect, render_template_string, session, Response, flash, send_from_directory
+from flask import Flask, request, redirect, render_template_string, session, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -87,29 +87,100 @@ with app.app_context():
 def serve_profile():
     return send_from_directory('.', 'profile.jpg')
 
-# ==================================================
-# FUNGSI PEMBANTU
-# ==================================================
-def ambil_pengaturan():
-    pengaturan = PengaturanPengguna.query.first()
-    if not pengaturan:
-        pengaturan = PengaturanPengguna()
-        db.session.add(pengaturan)
-        db.session.commit()
-    return pengaturan
-
 def masukkan_sampah(tipe, data_dict):
     item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
     db.session.add(item)
     db.session.commit()
 
 # ==================================================
-# TEMPLATE HTML
+# TEMPLATE HTML KONTRASTIS & INSTAN SWITCH (PERBAIKAN CSS & JS)
 # ==================================================
 
-HTML_INDEX = """
+CSS_SHARED = """
+    :root { 
+        --bg-paper: #f7f4ef; 
+        --card-paper: #ffffff; 
+        --text-main: #1e293b; 
+        --text-muted: #64748b;
+        --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7);
+        --border-color: rgba(212, 175, 55, 0.3);
+        --btn-outline: #334155;
+        --input-bg: #ffffff;
+        --input-text: #1e293b;
+    }
+    [data-theme="gelap"] {
+        --bg-paper: #0b132b; 
+        --card-paper: #1c2541; 
+        --text-main: #f8fafc; 
+        --text-muted: #cbd5e1;
+        --border-color: #334155;
+        --btn-outline: #38bdf8;
+        --input-bg: #1e293b;
+        --input-text: #f8fafc;
+    }
+    body { 
+        background-color: var(--bg-paper) !important; 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        color: var(--text-main) !important; 
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    h1, h2, h3, h4, h5, h6, p, span, div, label {
+        color: inherit;
+    }
+    .text-muted {
+        color: var(--text-muted) !important;
+    }
+    .header-title { font-family: 'Cinzel', serif; font-weight: 700; }
+    .top-badge { background: #fcf8ec; color: #b38728; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
+    .card-gold { background:var(--card-paper); border-radius:18px; border:1px solid var(--border-color); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
+    .card-gold::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:var(--gold-gradient); }
+    .card-gold:hover { transform:translateY(-4px); box-shadow:0 15px 30px rgba(212,175,55,0.18); }
+    .card-penulis { background:var(--card-paper); border:2px solid rgba(212,175,55,0.5); }
+    
+    .btn-custom-outline { color: var(--text-main) !important; border-color: var(--border-color) !important; background: var(--card-paper); }
+    .btn-custom-outline:hover { background: #b38728; color: #fff !important; }
+    
+    .search-box { position:relative; }
+    .search-box input { padding-left:38px; background: var(--input-bg) !important; color: var(--input-text) !important; border-color: var(--border-color) !important; }
+    .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; }
+    
+    .badge-count { background:#b38728; color:white; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
+    .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper); border: 2px solid #b38728; color: #b38728; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .filter-tag { cursor:pointer; transition:all 0.2s; background: var(--card-paper) !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
+    .filter-tag:hover, .filter-tag.active { background:#b38728 !important; color:white !important; }
+"""
+
+JS_THEME_SCRIPT = """
+<script>
+    (function() {
+        const savedTheme = localStorage.getItem('theme_mode') || 'terang';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+
+    document.addEventListener("DOMContentLoaded", function() {
+        updateIcon();
+    });
+
+    function toggleModeInstan() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') === 'gelap' ? 'terang' : 'gelap';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        localStorage.setItem('theme_mode', currentTheme);
+        updateIcon();
+    }
+
+    function updateIcon() {
+        const icon = document.getElementById('icon-mode');
+        if (icon) {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            icon.className = currentTheme === 'gelap' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon text-dark';
+        }
+    }
+</script>
+"""
+
+HTML_INDEX = f"""
 <!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -117,57 +188,26 @@ HTML_INDEX = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { 
-            --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #2c2a29; 
-            --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7);
-            --border-color: rgba(212, 175, 55, 0.3);
-        }
-        [data-theme="gelap"] {
-            --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc;
-            --border-color: rgba(148, 163, 184, 0.3);
-        }
-        body { 
-            background-color: var(--bg-paper) !important; 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            color: var(--text-main); 
-            transition: all 0.3s ease;
-            font-size: {{ '0.9rem' if pengaturan.ukuran_font == 'kecil' else '1rem' if pengaturan.ukuran_font == 'normal' else '1.1rem' }};
-        }
-        .header-title { font-family: 'Cinzel', serif; font-weight: 700; }
-        .top-badge { background: #fcf8ec; color: #b38728; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
-        .card-gold { background:var(--card-paper); border-radius:18px; border:1px solid var(--border-color); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
-        .card-gold::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:var(--gold-gradient); }
-        .card-gold:hover { transform:translateY(-4px); box-shadow:0 15px 30px rgba(212,175,55,0.18); }
-        .card-penulis { background:linear-gradient(135deg, #fff 0%, #fcf8ec 100%); border:2px solid rgba(212,175,55,0.5); }
-        [data-theme="gelap"] .card-penulis { background:linear-gradient(135deg, #1e293b 0%, #334155 100%); }
-        .search-box { position:relative; }
-        .search-box input { padding-left:38px; }
-        .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; }
-        .badge-count { background:#b38728; color:white; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
-        .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:42px; height:42px; display:flex; align-items:center; justify-content:center; }
-        .filter-tag { cursor:pointer; transition:all 0.2s; }
-        .filter-tag:hover, .filter-tag.active { background:#b38728; color:white; }
-    </style>
+    <style>{CSS_SHARED}</style>
+    {JS_THEME_SCRIPT}
 </head>
 <body>
-<button class="btn btn-outline-warning btn-mode-toggle" onclick="toggleMode()">
-    <i class="fa-solid {{ 'fa-sun' if pengaturan.mode_tema == 'gelap' else 'fa-moon' }}" id="icon-mode"></i>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
 </button>
 
 <div class="container py-5" style="max-width:850px;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <a href="/penulis" class="btn btn-outline-dark rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
+        <a href="/penulis" class="btn btn-custom-outline rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
         <div class="d-flex gap-2 align-items-center">
-            <a href="/statistik" class="btn btn-outline-info rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1"></i> Statistik</a>
-            <a href="/tong-sampah" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1"></i> Tong Sampah</a>
-            {% if is_admin %}
-                <a href="/backup" class="btn btn-outline-primary rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1"></i> Backup</a>
-                <a href="/pengaturan" class="btn btn-outline-dark rounded-pill btn-sm fw-bold"><i class="fa-solid fa-gear me-1"></i> Pengaturan</a>
+            <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
+            <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
+            {{% if is_admin %}}
+                <a href="/backup" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1 text-primary"></i> Backup</a>
                 <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
-            {% else %}
-                <a href="/login" class="btn btn-outline-dark rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
-            {% endif %}
+            {{% else %}}
+                <a href="/login" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
+            {{% endif %}}
         </div>
     </div>
     
@@ -177,28 +217,28 @@ HTML_INDEX = """
         <p class="text-muted small">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
     </div>
 
-    <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
+    <div class="card-gold p-3 mb-4 rounded-3">
         <div class="search-box mb-2">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" id="cari-input" class="form-control form-control-sm" placeholder="Cari judul, kategori..." oninput="jalankanPencarian(this.value)">
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2">
-            <span class="badge bg-light text-dark border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
-            {% for t in tema_list %}
-            <span class="badge bg-light text-dark border filter-tag" data-filter="{{ t.nama }}" onclick="filterKategori('{{ t.nama }}')">{{ t.nama }}</span>
-            {% endfor %}
+            <span class="badge border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
+            {{% for t in tema_list %}}
+            <span class="badge border filter-tag" data-filter="{{{{ t.nama }}}}" onclick="filterKategori('{{{{ t.nama }}}}')">{{{{ t.nama }}}}</span>
+            {{% endfor %}}
         </div>
     </div>
 
-    {% if is_admin %}
-    <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
+    {{% if is_admin %}}
+    <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema Baru</h6>
         <form action="/tambah-tema" method="POST" class="row g-2">
             <div class="col-9"><input type="text" name="nama" class="form-control form-control-sm" placeholder="Misal: Psikologi..." required></div>
             <div class="col-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button></div>
         </form>
     </div>
-    {% endif %}
+    {{% endif %}}
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
     <div class="row g-3" id="daftar-kategori">
@@ -210,7 +250,7 @@ HTML_INDEX = """
                             <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
                             <div>
                                 <span class="badge bg-warning text-dark fw-bold mb-1">Ruang Refleksi</span>
-                                <h4 class="h5 mb-1">✍️ Jurnal & Esai Bebas <span class="badge-count">{{ jumlah_esai }}</span></h4>
+                                <h4 class="h5 mb-1 fw-bold">✍️ Jurnal & Esai Bebas <span class="badge-count">{{{{ jumlah_esai }}}}</span></h4>
                                 <p class="text-muted small mb-0">Kumpulan perenungan harian & ide acak.</p>
                             </div>
                         </div>
@@ -220,170 +260,284 @@ HTML_INDEX = """
             </a>
         </div>
 
-        {% for tema in tema_list %}
-        <div class="col-md-6 kategori-item" data-nama="{{ tema.nama }}">
+        {{% for tema in tema_list %}}
+        <div class="col-md-6 kategori-item" data-nama="{{{{ tema.nama }}}}">
             <div class="card-gold p-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <a href="/tema/{{ tema.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1">
+                    <a href="/tema/{{{{ tema.id }}}}" class="text-decoration-none d-flex align-items-center flex-grow-1">
                         <i class="fa-solid fa-folder-open text-warning me-3 fs-4"></i>
-                        <h4 class="h5 mb-0">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
+                        <h4 class="h5 mb-0 fw-bold">{{{{ tema.nama }}}} <span class="badge-count">{{{{ tema.buku_list|length }}}}</span></h4>
                     </a>
-                    {% if is_admin %}
-                    <form action="/hapus-tema/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                    {{% if is_admin %}}
+                    <form action="/hapus-tema/{{{{ tema.id }}}}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
                         <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
                     </form>
-                    {% endif %}
+                    {{% endif %}}
                 </div>
-                <small class="text-muted ms-4">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }} &rarr;</small>
+                <small class="text-muted ms-4">Dibuat: {{{{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }}}} &rarr;</small>
             </div>
         </div>
-        {% endfor %}
+        {{% endfor %}}
     </div>
 </div>
 
 <script>
-function toggleMode() {
-    const html = document.documentElement;
-    const baru = html.getAttribute('data-theme') === 'gelap' ? 'terang' : 'gelap';
-    location.href = '/set-mode?mode=' + baru;
-}
-function jalankanPencarian(kata) {
-    document.querySelectorAll('.kategori-item').forEach(item => {
+function jalankanPencarian(kata) {{
+    document.querySelectorAll('.kategori-item').forEach(item => {{
         const nama = item.getAttribute('data-nama').toLowerCase();
         item.style.display = kata === '' || nama.includes(kata.toLowerCase()) ? '' : 'none';
-    });
-}
-function filterKategori(nama) {
+    }});
+}}
+function filterKategori(nama) {{
     document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-filter="${nama}"]`).classList.add('active');
-    document.querySelectorAll('.kategori-item').forEach(item => {
+    document.querySelector(`[data-filter="${{nama}}"]`).classList.add('active');
+    document.querySelectorAll('.kategori-item').forEach(item => {{
         item.style.display = nama === 'semua' || item.getAttribute('data-nama') === nama ? '' : 'none';
-    });
-}
+    }});
+}}
 </script>
 </body>
 </html>
 """
 
-HTML_PENGATURAN = """
+HTML_ESAI_PENULIS = f"""
 <!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pengaturan - Dede Suhendra</title>
+    <title>Jurnal & Esai - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; --border-color: rgba(212,175,55,0.3); }
-        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
-        .card { background: var(--card-paper); border:1px solid var(--border-color); border-radius:16px; padding:24px; }
-    </style>
+    <style>{CSS_SHARED}</style>
+    {JS_THEME_SCRIPT}
 </head>
 <body>
-<div class="container" style="max-width:500px;">
-    <a href="/" class="btn btn-outline-secondary btn-sm mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
-    <h3 class="mb-4">⚙️ Pengaturan Tampilan</h3>
-    <form method="POST">
-        <div class="card mb-3">
-            <h6 class="fw-bold mb-3">Tema Warna</h6>
-            <select name="mode_tema" class="form-select mb-3">
-                <option value="terang" {% if pengaturan.mode_tema == 'terang' %}selected{% endif %}>☀️ Mode Terang</option>
-                <option value="gelap" {% if pengaturan.mode_tema == 'gelap' %}selected{% endif %}>🌙 Mode Gelap</option>
-            </select>
-            <h6 class="fw-bold mb-3">Ukuran Font</h6>
-            <select name="ukuran_font" class="form-select mb-3">
-                <option value="kecil" {% if pengaturan.ukuran_font == 'kecil' %}selected{% endif %}>Kecil</option>
-                <option value="normal" {% if pengaturan.ukuran_font == 'normal' %}selected{% endif %}>Normal</option>
-                <option value="besar" {% if pengaturan.ukuran_font == 'besar' %}selected{% endif %}>Besar</option>
-            </select>
-            <button type="submit" class="btn btn-primary w-100 mt-2">Simpan Pengaturan</button>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-4" style="max-width:760px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
+    <div class="card-gold p-4 rounded-4 mb-4">
+        <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI</span>
+        <h2 class="h3 fw-bold text-warning mb-1">✍️ Jurnal & Esai Bebas Penulis</h2>
+        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian. Total: {{{{ esai_list|length }}}} karya.</p>
+    </div>
+    
+    <div class="search-box mb-4">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" class="form-control" placeholder="Cari judul atau isi..." oninput="filterEsai(this.value)">
+    </div>
+
+    {{% if is_admin %}}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai Baru</h6>
+        <form action="/tambah-esai" method="POST">
+            <input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul..." required>
+            <input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori: Refleksi, Ide, dll.">
+            <textarea name="isi" class="form-control form-control-sm mb-2" rows="4" placeholder="Tulis catatan (Markdown didukung)..." required></textarea>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan Catatan</button>
+        </form>
+    </div>
+    {{% endif %}}
+
+    {{% for e in esai_list %}}
+    <div class="card-gold p-4 mb-3 esai-item">
+        {{% if is_admin %}}
+        <form action="/hapus-esai/{{{{ e.id }}}}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
+            <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
+        </form>
+        {{% endif %}}
+        <span class="badge bg-info text-dark mb-2">{{{{ e.kategori }}}}</span>
+        <h4 class="text-warning fw-bold mb-3 esai-judul">{{{{ e.judul }}}}</h4>
+        <div class="markdown-body" id="content-esai-{{{{ e.id }}}}"></div>
+        <textarea id="raw-esai-{{{{ e.id }}}}" style="display:none;">{{{{ e.isi }}}}</textarea>
+        <div class="text-muted small mt-3">Dibuat: {{{{ e.dibuat_pada.strftime('%d %b %Y %H:%M') if e.dibuat_pada else '-' }}}}</div>
+    </div>
+    {{% else %}}
+    <div class="text-center py-5 card-gold rounded-4">
+        <i class="fa-solid fa-feather fs-1 text-muted mb-2"></i>
+        <p class="text-muted mb-0">Belum ada jurnal atau esai.</p>
+    </div>
+    {{% endfor %}}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){{
+    marked.use({{ gfm: true, breaks: true }});
+    {{% for e in esai_list %}}
+        var rawText = document.getElementById('raw-esai-{{{{ e.id }}}}').value;
+        document.getElementById('content-esai-{{{{ e.id }}}}').innerHTML = marked.parse(rawText);
+    {{% endfor %}}
+
+    filterEsai = function(kata) {{
+        document.querySelectorAll('.esai-item').forEach(item => {{
+            const judul = item.querySelector('.esai-judul').textContent.toLowerCase();
+            item.style.display = kata === '' || judul.includes(kata.toLowerCase()) ? '' : 'none';
+        }});
+    }};
+}});
+</script>
+</body>
+</html>
+"""
+
+HTML_TEMA = f"""
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tema: {{{{ tema.nama }}}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>{CSS_SHARED}</style>
+    {JS_THEME_SCRIPT}
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 shadow-sm" style="font-weight:600;"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Semua Tema</a>
+    <div class="card-gold p-4 mb-4 rounded-4 border">
+        <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-folder-open me-1"></i> Kategori Karya</span>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{{{ tema.nama }}}}</h2>
+        <small class="text-muted">Dibuat: {{{{ tema.dibuat_pada.strftime('%d %b %Y %H:%M') if tema.dibuat_pada else '-' }}}} &nbsp;|&nbsp; Jumlah Buku: {{{{ buku_list|length }}}}</small>
+    </div>
+    
+    {{% if is_admin %}}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-book-medical me-1"></i> Tambah Buku Baru</h6>
+        <form action="/tambah-buku" method="POST" class="row g-2">
+            <input type="hidden" name="tema_id" value="{{{{ tema.id }}}}">
+            <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
+            <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul (Opsional)"></div>
+            <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan Penulis..."></textarea></div>
+            <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
+        </form>
+    </div>
+    {{% endif %}}
+
+    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Buku Tersimpan:</h5>
+    <div class="row g-3">
+        {{% for buku in buku_list %}}
+        <div class="col-12">
+            <div class="card-gold p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="/buku/{{{{ buku.id }}}}" class="text-decoration-none flex-grow-1">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-file-lines text-warning fs-4 me-3"></i>
+                            <div>
+                                <h4 class="h5 mb-1 fw-bold">{{{{ buku.judul.upper() }}}}</h4>
+                                {{{% if buku.subjudul %}}}<p class="text-muted small mb-0">{{{{ buku.subjudul }}}}</p>{{{% endif %}}}
+                            </div>
+                        </div>
+                    </a>
+                    {{% if is_admin %}}
+                    <form action="/hapus-buku/{{{{ buku.id }}}}/{{{{ tema.id }}}}" method="POST" onsubmit="return confirm('Hapus buku ini?');">
+                        <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    {{% endif %}}
+                </div>
+            </div>
         </div>
-    </form>
+        {{% else %}}
+        <div class="text-center py-4 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada buku dalam tema ini.</p>
+        </div>
+        {{% endfor %}}
+    </div>
 </div>
 </body>
 </html>
 """
 
-HTML_STATISTIK = """
+HTML_STATISTIK = f"""
 <!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistik - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; }
-        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
-        .stat-card { background: var(--card-paper); border-radius:16px; padding:24px; text-align:center; border:1px solid rgba(212,175,55,0.3); margin-bottom:20px; }
-        .stat-number { font-size:42px; font-weight:800; color:#b38728; }
+    <style>{CSS_SHARED}
+        .stat-card {{ text-align:center; }}
+        .stat-number {{ font-size:42px; font-weight:800; color:#b38728; }}
     </style>
+    {JS_THEME_SCRIPT}
 </head>
 <body>
-<div class="container" style="max-width:600px;">
-    <a href="/" class="btn btn-outline-secondary btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
-    <h3 class="mb-4 text-center">📊 Statistik Perpustakaan</h3>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-4" style="max-width:600px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
+    <h3 class="mb-4 text-center fw-bold">📊 Statistik Perpustakaan</h3>
     <div class="row g-3">
-        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i><div class="stat-number">{{ total_tema }}</div><div class="text-muted">Kategori</div></div></div>
-        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-book fs-1 text-primary mb-2"></i><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Jumlah Buku</div></div></div>
-        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Catatan / Bab</div></div></div>
-        <div class="col-6"><div class="stat-card"><i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i><div class="stat-number">{{ total_esai }}</div><div class="text-muted">Esai / Jurnal</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i><div class="stat-number">{{{{ total_tema }}}}</div><div class="text-muted">Kategori</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-book fs-1 text-primary mb-2"></i><div class="stat-number">{{{{ total_buku }}}}</div><div class="text-muted">Jumlah Buku</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i><div class="stat-number">{{{{ total_catatan }}}}</div><div class="text-muted">Catatan / Bab</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i><div class="stat-number">{{{{ total_esai }}}}</div><div class="text-muted">Esai / Jurnal</div></div></div>
     </div>
-    <div class="stat-card mt-4">
+    <div class="card-gold stat-card p-4 mt-4">
         <h6 class="fw-bold mb-3">📅 Ringkasan Aktivitas</h6>
-        <p>Buku baru: <strong>{{ buku_bulan_ini }}</strong> &nbsp;|&nbsp; Esai baru: <strong>{{ esai_bulan_ini }}</strong></p>
-        <p class="mb-0">Total kata diperkirakan: <strong>{{ total_kata }}</strong> kata</p>
+        <p>Buku baru: <strong>{{{{ buku_bulan_ini }}}}</strong> &nbsp;|&nbsp; Esai baru: <strong>{{{{ esai_bulan_ini }}}}</strong></p>
+        <p class="mb-0">Total kata diperkirakan: <strong>{{{{ total_kata }}}}</strong> kata</p>
     </div>
 </div>
 </body>
 </html>
 """
 
-HTML_TONG_SAMPAH = """
+HTML_TONG_SAMPAH = f"""
 <!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tong Sampah - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; }
-        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background: var(--bg-paper); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; padding:30px 15px; }
-        .card { background: var(--card-paper); border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:16px; margin-bottom:12px; }
-    </style>
+    <style>{CSS_SHARED}</style>
+    {JS_THEME_SCRIPT}
 </head>
 <body>
-<div class="container" style="max-width:700px;">
-    <a href="/" class="btn btn-outline-secondary btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
-    <h4 class="mb-4">🗑️ Tong Sampah</h4>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-4" style="max-width:700px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
+    <h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>
     <p class="text-muted small mb-4">Item bisa dipulihkan atau dihapus permanen.</p>
-    {% if sampah_list %}
-        {% for item in sampah_list %}
-        <div class="card d-flex justify-content-between align-items-center flex-row flex-wrap gap-2">
+    {{% if sampah_list %}}
+        {{% for item in sampah_list %}}
+        <div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center flex-row flex-wrap gap-2">
             <div>
-                <span class="badge bg-secondary me-2">{{ item.tipe }}</span>
-                <span>{{ item.data_json }}</span>
-                <div class="text-muted small mt-1">Dihapus: {{ item.dihapus_pada.strftime('%d %b %Y %H:%M') }}</div>
+                <span class="badge bg-secondary me-2">{{{{ item.tipe }}}}</span>
+                <span>{{{{ item.data_json }}}}</span>
+                <div class="text-muted small mt-1">Dihapus: {{{{ item.dihapus_pada.strftime('%d %b %Y %H:%M') }}}}</div>
             </div>
             <div class="d-flex gap-2">
-                <a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i> Pulihkan</a>
-                <a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen?')"><i class="fa-solid fa-trash-xmark"></i></a>
+                <a href="/pulihkan/{{{{ item.id }}}}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i> Pulihkan</a>
+                <a href="/hapus-permanen/{{{{ item.id }}}}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen?')"><i class="fa-solid fa-trash-xmark"></i></a>
             </div>
         </div>
-        {% endfor %}
+        {{% endfor %}}
         <form action="/kosongkan-tong-sampah" method="POST" onsubmit="return confirm('Kosongkan semua?')">
             <button type="submit" class="btn btn-danger w-100 mt-3">🗑️ Kosongkan Tong Sampah</button>
         </form>
-    {% else %}
-        <div class="text-center py-5 text-muted"><i class="fa-solid fa-trash-can-check fs-1 mb-2"></i><p>Tong sampah kosong.</p></div>
-    {% endif %}
+    {{% else %}}
+        <div class="text-center py-5 card-gold rounded-4"><i class="fa-solid fa-trash-can-check fs-1 text-muted mb-2"></i><p class="text-muted">Tong sampah kosong.</p></div>
+    {{% endif %}}
 </div>
 </body>
 </html>
@@ -484,158 +638,6 @@ HTML_PENULIS = """
 </html>
 """
 
-HTML_ESAI_PENULIS = """
-<!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jurnal & Esai - Dede Suhendra</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
-        body { background:var(--bg); color:var(--text); padding:25px 15px; font-family:'Plus Jakarta Sans',sans-serif; }
-        .container { max-width:760px; margin:0 auto; }
-        .esai-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:24px; position:relative; }
-        .markdown-body { line-height:1.8; color:#cbd5e1; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <a href="/" class="btn btn-outline-light btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
-    <div class="bg-primary bg-opacity-10 border border-primary p-4 rounded-4 mb-4">
-        <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI</span>
-        <h2 class="h3 fw-bold text-info mb-1">✍️ Jurnal & Esai Bebas Penulis</h2>
-        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian. Total: {{ esai_list|length }} karya.</p>
-    </div>
-    <input type="text" class="form-control bg-dark text-white border-secondary mb-4" placeholder="🔍 Cari judul atau isi..." oninput="filterEsai(this.value)">
-    {% if is_admin %}
-    <div class="card bg-dark text-white border-secondary p-3 mb-4 rounded-3">
-        <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai Baru</h6>
-        <form action="/tambah-esai" method="POST">
-            <input type="text" name="judul" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Judul..." required>
-            <input type="text" name="kategori" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Kategori: Refleksi, Ide, dll.">
-            <textarea name="isi" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" rows="4" placeholder="Tulis catatan (Markdown didukung)..." required></textarea>
-            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan Catatan</button>
-        </form>
-    </div>
-    {% endif %}
-    {% for e in esai_list %}
-    <div class="esai-card esai-item">
-        {% if is_admin %}
-        <form action="/hapus-esai/{{ e.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
-            <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
-        </form>
-        {% endif %}
-        <span class="badge bg-info text-dark mb-2">{{ e.kategori }}</span>
-        <h4 class="text-info fw-bold mb-3 esai-judul">{{ e.judul }}</h4>
-        <div class="markdown-body" id="content-esai-{{ e.id }}"></div>
-        <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
-        <div class="text-muted small mt-3">Dibuat: {{ e.dibuat_pada.strftime('%d %b %Y %H:%M') if e.dibuat_pada else '-' }}</div>
-    </div>
-    {% else %}
-    <div class="text-center py-5 bg-dark bg-opacity-50 rounded-4 border border-secondary">
-        <i class="fa-solid fa-feather fs-1 text-muted mb-2"></i>
-        <p class="text-muted mb-0">Belum ada jurnal atau esai.</p>
-    </div>
-    {% endfor %}
-</div>
-<script>
-document.addEventListener("DOMContentLoaded", function(){
-    marked.use({ gfm: true, breaks: true });
-    {% for e in esai_list %}
-        var rawText = document.getElementById('raw-esai-{{ e.id }}').value;
-        document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(rawText);
-    {% endfor %}
-
-    filterEsai = function(kata) {
-        document.querySelectorAll('.esai-item').forEach(item => {
-            const judul = item.querySelector('.esai-judul').textContent.toLowerCase();
-            item.style.display = kata === '' || judul.includes(kata.toLowerCase()) ? '' : 'none';
-        });
-    };
-});
-</script>
-</body>
-</html>
-"""
-
-HTML_TEMA = """
-<!DOCTYPE html>
-<html lang="id" data-theme="{{ pengaturan.mode_tema }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tema: {{ tema.nama }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg-paper: #f7f4ef; --card-paper: #fff; --text-main: #2c2a29; --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7); }
-        [data-theme="gelap"] { --bg-paper: #0f172a; --card-paper: #1e293b; --text-main: #f8fafc; }
-        body { background:var(--bg-paper) !important; font-family:'Plus Jakarta Sans',sans-serif; color:var(--text-main); }
-        .card-buku-gold { background:var(--card-paper); border-radius:16px; border:1px solid rgba(212,175,55,0.3); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
-        .card-buku-gold::before { content:''; position:absolute; top:0; left:0; width:5px; height:100%; background:var(--gold-gradient); }
-        .card-buku-gold:hover { transform:translateY(-3px); box-shadow:0 15px 30px rgba(212,175,55,0.15); }
-    </style>
-</head>
-<body>
-<div class="container py-5" style="max-width:850px;">
-    <a href="/" class="btn btn-outline-dark rounded-pill btn-sm px-4 mb-4 shadow-sm" style="font-weight:600;"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Semua Tema</a>
-    <div class="bg-white rounded-4 p-4 mb-4 shadow-sm border" style="border-color:rgba(212,175,55,0.3)!important;">
-        <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-folder-open me-1"></i> Kategori Karya</span>
-        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{ tema.nama }}</h2>
-        <small class="text-muted">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y %H:%M') if tema.dibuat_pada else '-' }} &nbsp;|&nbsp; Jumlah Buku: {{ buku_list|length }}</small>
-    </div>
-    {% if is_admin %}
-    <div class="card border-0 shadow-sm p-3 mb-4 rounded-3">
-        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-book-medical me-1"></i> Tambah Buku Baru</h6>
-        <form action="/tambah-buku" method="POST" class="row g-2">
-            <input type="hidden" name="tema_id" value="{{ tema.id }}">
-            <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
-            <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul (Opsional)"></div>
-            <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan Penulis..."></textarea></div>
-            <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
-        </form>
-    </div>
-    {% endif %}
-    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Buku Tersimpan:</h5>
-    <div class="row g-3">
-        {% for buku in buku_list %}
-        <div class="col-12">
-            <div class="card-buku-gold p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <a href="/buku/{{ buku.id }}" class="text-decoration-none flex-grow-1">
-                        <div class="d-flex align-items-center">
-                            <i class="fa-solid fa-file-lines text-warning fs-4 me-3"></i>
-                            <div>
-                                <h4 class="h5 mb-1 text-dark fw-bold">{{ buku.judul.upper() }}</h4>
-                                {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
-                            </div>
-                        </div>
-                    </a>
-                    {% if is_admin %}
-                    <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus buku ini?');">
-                        <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="text-center py-4 bg-white rounded-4 shadow-sm">
-            <p class="text-muted mb-0">Belum ada buku dalam tema ini.</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-</body>
-</html>
-"""
-
 HTML_LOGIN = """
 <!DOCTYPE html>
 <html lang="id">
@@ -676,16 +678,7 @@ def index():
     is_admin = session.get('is_admin')
     tema_list = Tema.query.order_by(Tema.id.asc()).all()
     jumlah_esai = EsaiPenulis.query.count()
-    pengaturan = ambil_pengaturan()
-    return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai, pengaturan=pengaturan)
-
-@app.route('/set-mode')
-def set_mode():
-    mode = request.args.get('mode', 'terang')
-    pengaturan = ambil_pengaturan()
-    pengaturan.mode_tema = mode
-    db.session.commit()
-    return redirect(request.referrer or '/')
+    return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai)
 
 @app.route('/penulis')
 def tentang_penulis():
@@ -695,8 +688,7 @@ def tentang_penulis():
 def catatan_penulis():
     is_admin = session.get('is_admin')
     esai_list = EsaiPenulis.query.order_by(EsaiPenulis.id.desc()).all()
-    pengaturan = ambil_pengaturan()
-    return render_template_string(HTML_ESAI_PENULIS, esai_list=esai_list, is_admin=is_admin, pengaturan=pengaturan)
+    return render_template_string(HTML_ESAI_PENULIS, esai_list=esai_list, is_admin=is_admin)
 
 @app.route('/tambah-esai', methods=['POST'])
 def tambah_esai():
@@ -727,8 +719,7 @@ def detail_tema(tema_id):
     is_admin = session.get('is_admin')
     tema = Tema.query.get_or_404(tema_id)
     buku_list = Buku.query.filter_by(tema_id=tema_id).order_by(Buku.id.asc()).all()
-    pengaturan = ambil_pengaturan()
-    return render_template_string(HTML_TEMA, tema=tema, buku_list=buku_list, is_admin=is_admin, pengaturan=pengaturan)
+    return render_template_string(HTML_TEMA, tema=tema, buku_list=buku_list, is_admin=is_admin)
 
 @app.route('/tambah-tema', methods=['POST'])
 def tambah_tema():
@@ -776,27 +767,13 @@ def hapus_buku(buku_id, tema_id):
         db.session.commit()
     return redirect(f'/tema/{tema_id}')
 
-@app.route('/pengaturan', methods=['GET', 'POST'])
-def pengaturan():
-    if not session.get('is_admin'):
-        return "Akses Ditolak", 403
-    p = ambil_pengaturan()
-    if request.method == 'POST':
-        p.mode_tema = request.form.get('mode_tema', 'terang')
-        p.ukuran_font = request.form.get('ukuran_font', 'normal')
-        db.session.commit()
-        return redirect('/')
-    return render_template_string(HTML_PENGATURAN, pengaturan=p)
-
 @app.route('/statistik')
 def statistik():
-    pengaturan = ambil_pengaturan()
     total_tema = Tema.query.count()
     total_buku = Buku.query.count()
     total_catatan = Catatan.query.count()
     total_esai = EsaiPenulis.query.count()
     
-    # Hitung Perkiraan Total Kata
     semua_catatan = Catatan.query.all()
     semua_esai = EsaiPenulis.query.all()
     total_kata = sum(len(c.isi.split()) for c in semua_catatan) + sum(len(e.isi.split()) for e in semua_esai)
@@ -809,13 +786,12 @@ def statistik():
                                   total_tema=total_tema, total_buku=total_buku, 
                                   total_catatan=total_catatan, total_esai=total_esai,
                                   total_kata=total_kata, buku_bulan_ini=buku_bulan_ini, 
-                                  esai_bulan_ini=esai_bulan_ini, pengaturan=pengaturan)
+                                  esai_bulan_ini=esai_bulan_ini)
 
 @app.route('/tong-sampah')
 def tong_sampah():
     sampah_list = TongSampah.query.order_by(TongSampah.dihapus_pada.desc()).all()
-    pengaturan = ambil_pengaturan()
-    return render_template_string(HTML_TONG_SAMPAH, sampah_list=sampah_list, pengaturan=pengaturan)
+    return render_template_string(HTML_TONG_SAMPAH, sampah_list=sampah_list)
 
 @app.route('/pulihkan/<int:item_id>')
 def pulihkan(item_id):
