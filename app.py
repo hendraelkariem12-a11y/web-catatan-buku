@@ -201,11 +201,34 @@ HTML_INDEX = """
             <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
             {% if is_admin %}
                 <a href="/backup" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1 text-primary"></i> Backup</a>
+                <button type="button" class="btn btn-custom-outline rounded-pill btn-sm fw-bold text-success" data-bs-toggle="modal" data-bs-target="#restoreModal"><i class="fa-solid fa-upload me-1"></i> Restore</button>
                 <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
             {% else %}
                 <a href="/login" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
             {% endif %}
         </div>
+    </div>
+
+    <!-- Modal Restore Data -->
+    <div class="modal fade" id="restoreModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title fw-bold">📥 Restore Data Catatan</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <form action="/restore" method="POST" enctype="multipart/form-data">
+              <div class="modal-body">
+                <p class="small text-muted">Upload file <code>backup_karya.json</code> yang pernah di-download sebelumnya untuk mengembalikan seluruh catatan.</p>
+                <input type="file" name="file_json" class="form-control bg-secondary text-white" accept=".json" required>
+              </div>
+              <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-success fw-bold">Upload & Restore</button>
+              </div>
+          </form>
+        </div>
+      </div>
     </div>
     
     <div class="text-center mb-5">
@@ -278,6 +301,7 @@ HTML_INDEX = """
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function jalankanPencarian(kata) {
     document.querySelectorAll('.kategori-item').forEach(item => {
@@ -920,3 +944,29 @@ def backup_db():
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
+
+@app.route('/restore', methods=['POST'])
+def restore_db():
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    file = request.files.get('file_json')
+    if file:
+        data = json.load(file)
+        # Restore Tema
+        for t in data.get('tema', []):
+            if not Tema.query.get(t['id']):
+                db.session.add(Tema(id=t['id'], nama=t['nama']))
+        # Restore Buku
+        for b in data.get('buku', []):
+            if not Buku.query.get(b['id']):
+                db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+        # Restore Catatan
+        for c in data.get('catatan', []):
+            if not Catatan.query.get(c['id']):
+                db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
+        # Restore Esai
+        for e in data.get('esai', []):
+            if not EsaiPenulis.query.get(e['id']):
+                db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+        db.session.commit()
+    return redirect('/')
