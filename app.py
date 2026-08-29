@@ -23,6 +23,12 @@ app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 # ==================================================
+# KONFIGURASI FOLDER PENYIMPANAN PDF AMAN VERCEL / RAILWAY
+# ==================================================
+UPLOAD_PDF_FOLDER = os.path.join('/tmp', 'uploaded_pdfs')
+os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
+
+# ==================================================
 # KONFIGURASI DATABASE AMAN VERCEL / RAILWAY
 # ==================================================
 db_path = os.path.join('/tmp', 'karya_buku.db')
@@ -255,7 +261,7 @@ HTML_INDEX = """
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="/penulis" class="btn btn-custom-outline rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            <a href="/baca-pdf?judul=Demo+Naskah+Modul+Buku" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-book-open me-1 text-danger"></i> PDF Reader</a>
+            <a href="/baca-pdf" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-book-open me-1 text-danger"></i> PDF Reader</a>
             <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
             <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
             {% if is_admin %}
@@ -393,23 +399,19 @@ HTML_PDF_VIEWER = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembaca PDF Inline - Dede Suhendra</title>
+    <title>Pembaca PDF - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>""" + CSS_SHARED + """
         .pdf-frame-wrapper {
             position: relative;
             width: 100%;
-            height: 78vh;
+            height: 75vh;
             border-radius: 14px;
             overflow: hidden;
             border: 1px solid var(--border-color);
         }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
+        iframe { width: 100%; height: 100%; border: none; }
     </style>
     """ + JS_THEME_SCRIPT + """
 </head>
@@ -421,20 +423,48 @@ HTML_PDF_VIEWER = """
 <div class="container py-4" style="max-width:920px;">
     <a href="/" class="btn btn-custom-outline btn-sm mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
     
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-file-arrow-up me-1"></i> Upload File PDF Baru</h6>
+        <form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2">
+            <div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div>
+            <div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-row flex-wrap gap-2">
         <div>
             <span class="badge bg-warning text-dark fw-bold mb-1"><i class="fa-solid fa-book-open me-1"></i> E-Book Inline Reader</span>
-            <h4 class="h5 fw-bold mb-0 text-warning">{{ judul_pdf }}</h4>
+            <h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>
         </div>
-        <a href="{{ url_pdf }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold">
-            <i class="fa-solid fa-download me-1"></i> Unduh File PDF
+        {% if nama_file != "Pilih file PDF di bawah" %}
+        <a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold">
+            <i class="fa-solid fa-download me-1"></i> Unduh File Ini
         </a>
+        {% endif %}
+    </div>
+
+    <!-- Pilihan File PDF yang Tersedia -->
+    <div class="card-gold p-3 mb-3">
+        <h6 class="fw-bold mb-2 small text-muted">📁 Daftar Modul PDF Tersedia:</h6>
+        <div class="d-flex flex-wrap gap-2">
+            {% for f in daftar_file %}
+                <a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold">
+                    <i class="fa-solid fa-file-pdf me-1"></i> {{ f }}
+                </a>
+            {% else %}
+                <small class="text-muted">Belum ada file PDF yang di-upload. Silakan upload melalui akun admin.</small>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- PDF Viewer Inline via Mozilla PDF.js Embed Engine -->
+    {% if url_pdf %}
     <div class="pdf-frame-wrapper card-gold">
         <iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe>
     </div>
+    {% endif %}
 </div>
 </body>
 </html>
@@ -914,9 +944,32 @@ def index():
 
 @app.route('/baca-pdf')
 def baca_pdf():
-    url_pdf = request.args.get('url', 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf')
-    judul_pdf = request.args.get('judul', 'Demo Naskah E-Book Digital')
-    return render_template_string(HTML_PDF_VIEWER, url_pdf=url_pdf, judul_pdf=judul_pdf)
+    is_admin = session.get('is_admin')
+    daftar_file = [f for f in os.listdir(UPLOAD_PDF_FOLDER) if f.endswith('.pdf')]
+    
+    nama_pilihan = request.args.get('nama')
+    if not nama_pilihan and daftar_file:
+        nama_pilihan = daftar_file[0]
+        
+    url_pdf = f"/file-pdf/{nama_pilihan}" if nama_pilihan in daftar_file else None
+    nama_tampil = nama_pilihan if nama_pilihan else "Pilih file PDF di bawah"
+    
+    return render_template_string(HTML_PDF_VIEWER, url_pdf=url_pdf, nama_file=nama_tampil, daftar_file=daftar_file, is_admin=is_admin)
+
+@app.route('/upload-pdf', methods=['POST'])
+def upload_pdf():
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    file = request.files.get('file_pdf')
+    if file and file.filename.endswith('.pdf'):
+        filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+        file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+        app.logger.info(f"File PDF berhasil di-upload: {filename}")
+    return redirect('/baca-pdf')
+
+@app.route('/file-pdf/<path:filename>')
+def serve_uploaded_pdf(filename):
+    return send_from_directory(UPLOAD_PDF_FOLDER, filename)
 
 @app.route('/penulis')
 def tentang_penulis():
