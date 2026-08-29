@@ -1,3 +1,6 @@
 Flask
 Flask-SQLAlchemy
 gunicorn
+reportlab
+libsql-client
+sqlalchemy-libsql
