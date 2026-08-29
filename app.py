@@ -19,9 +19,9 @@ app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 db_url = os.environ.get('DATABASE_URL', '')
 db_token = os.environ.get('DATABASE_TOKEN', '')
 
-if db_url.startswith('libsql://'):
-    # Menggunakan Database Turso Cloud Permanen jika di Vercel
-    url_clean = db_url.replace('libsql://', '')
+if db_url and db_token:
+    # Format URI LibSQL yang stabil untuk Vercel Serverless
+    url_clean = db_url.replace('libsql://', '').replace('https://', '')
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+libsql://{url_clean}?authToken={db_token}"
 else:
     # Fallback ke SQLite lokal sementara
@@ -84,15 +84,19 @@ class TongSampah(db.Model):
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
-with app.app_context():
-    db.create_all()
-    if Tema.query.count() == 0:
-        db.session.add_all([
-            Tema(nama='Filsafat'),
-            Tema(nama='Keuangan'),
-            Tema(nama='Komunikasi')
-        ])
-        db.session.commit()
+# Inisialisasi Tabel Otomatis
+try:
+    with app.app_context():
+        db.create_all()
+        if Tema.query.count() == 0:
+            db.session.add_all([
+                Tema(nama='Filsafat'),
+                Tema(nama='Keuangan'),
+                Tema(nama='Komunikasi')
+            ])
+            db.session.commit()
+except Exception as e:
+    print(f"Error DB init: {e}")
 
 @app.route('/profile.jpg')
 def serve_profile():
