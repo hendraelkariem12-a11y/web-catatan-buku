@@ -93,7 +93,7 @@ def masukkan_sampah(tipe, data_dict):
     db.session.commit()
 
 # ==================================================
-# TEMPLATE HTML KONTRASTIS & INSTAN SWITCH (PERBAIKAN CSS & JS)
+# CSS & JAVASCRIPT SHARED (KONTRASTIS 100%)
 # ==================================================
 
 CSS_SHARED = """
@@ -103,8 +103,7 @@ CSS_SHARED = """
         --text-main: #1e293b; 
         --text-muted: #64748b;
         --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7);
-        --border-color: rgba(212, 175, 55, 0.3);
-        --btn-outline: #334155;
+        --border-color: rgba(212, 175, 55, 0.4);
         --input-bg: #ffffff;
         --input-text: #1e293b;
     }
@@ -114,7 +113,6 @@ CSS_SHARED = """
         --text-main: #f8fafc; 
         --text-muted: #cbd5e1;
         --border-color: #334155;
-        --btn-outline: #38bdf8;
         --input-bg: #1e293b;
         --input-text: #f8fafc;
     }
@@ -124,28 +122,28 @@ CSS_SHARED = """
         color: var(--text-main) !important; 
         transition: background-color 0.2s ease, color 0.2s ease;
     }
-    h1, h2, h3, h4, h5, h6, p, span, div, label {
-        color: inherit;
+    h1, h2, h3, h4, h5, h6, p, div, label, span, small {
+        color: inherit !important;
     }
     .text-muted {
         color: var(--text-muted) !important;
     }
-    .header-title { font-family: 'Cinzel', serif; font-weight: 700; }
-    .top-badge { background: #fcf8ec; color: #b38728; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
-    .card-gold { background:var(--card-paper); border-radius:18px; border:1px solid var(--border-color); box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
+    .header-title { font-family: 'Cinzel', serif; font-weight: 700; color: var(--text-main) !important; }
+    .top-badge { background: #fcf8ec; color: #b38728 !important; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
+    
+    .card-gold { background:var(--card-paper) !important; border-radius:18px; border:1px solid var(--border-color) !important; box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
     .card-gold::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:var(--gold-gradient); }
     .card-gold:hover { transform:translateY(-4px); box-shadow:0 15px 30px rgba(212,175,55,0.18); }
-    .card-penulis { background:var(--card-paper); border:2px solid rgba(212,175,55,0.5); }
     
-    .btn-custom-outline { color: var(--text-main) !important; border-color: var(--border-color) !important; background: var(--card-paper); }
-    .btn-custom-outline:hover { background: #b38728; color: #fff !important; }
+    .btn-custom-outline { color: var(--text-main) !important; border-color: var(--border-color) !important; background: var(--card-paper) !important; }
+    .btn-custom-outline:hover { background: #b38728 !important; color: #fff !important; }
     
     .search-box { position:relative; }
     .search-box input { padding-left:38px; background: var(--input-bg) !important; color: var(--input-text) !important; border-color: var(--border-color) !important; }
     .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; }
     
-    .badge-count { background:#b38728; color:white; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
-    .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper); border: 2px solid #b38728; color: #b38728; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .badge-count { background:#b38728; color:white !important; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
+    .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper) !important; border: 2px solid #b38728 !important; color: #b38728 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .filter-tag { cursor:pointer; transition:all 0.2s; background: var(--card-paper) !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
     .filter-tag:hover, .filter-tag.active { background:#b38728 !important; color:white !important; }
 """
@@ -178,7 +176,11 @@ JS_THEME_SCRIPT = """
 </script>
 """
 
-HTML_INDEX = f"""
+# ==================================================
+# TEMPLATE HTML UTAMA
+# ==================================================
+
+HTML_INDEX = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -188,8 +190,8 @@ HTML_INDEX = f"""
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>{CSS_SHARED}</style>
-    {JS_THEME_SCRIPT}
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
 </head>
 <body>
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
@@ -202,12 +204,12 @@ HTML_INDEX = f"""
         <div class="d-flex gap-2 align-items-center">
             <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
             <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
-            {{% if is_admin %}}
+            {% if is_admin %}
                 <a href="/backup" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1 text-primary"></i> Backup</a>
                 <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
-            {{% else %}}
+            {% else %}
                 <a href="/login" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
-            {{% endif %}}
+            {% endif %}
         </div>
     </div>
     
@@ -224,13 +226,13 @@ HTML_INDEX = f"""
         </div>
         <div class="d-flex flex-wrap gap-2 mt-2">
             <span class="badge border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
-            {{% for t in tema_list %}}
-            <span class="badge border filter-tag" data-filter="{{{{ t.nama }}}}" onclick="filterKategori('{{{{ t.nama }}}}')">{{{{ t.nama }}}}</span>
-            {{% endfor %}}
+            {% for t in tema_list %}
+            <span class="badge border filter-tag" data-filter="{{ t.nama }}" onclick="filterKategori('{{ t.nama }}')">{{ t.nama }}</span>
+            {% endfor %}
         </div>
     </div>
 
-    {{% if is_admin %}}
+    {% if is_admin %}
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema Baru</h6>
         <form action="/tambah-tema" method="POST" class="row g-2">
@@ -238,19 +240,19 @@ HTML_INDEX = f"""
             <div class="col-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button></div>
         </form>
     </div>
-    {{% endif %}}
+    {% endif %}
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
     <div class="row g-3" id="daftar-kategori">
         <div class="col-12 kategori-item" data-nama="Jurnal & Esai">
             <a href="/catatan-penulis" class="text-decoration-none">
-                <div class="card-gold card-penulis p-4">
+                <div class="card-gold p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
                             <div>
                                 <span class="badge bg-warning text-dark fw-bold mb-1">Ruang Refleksi</span>
-                                <h4 class="h5 mb-1 fw-bold">✍️ Jurnal & Esai Bebas <span class="badge-count">{{{{ jumlah_esai }}}}</span></h4>
+                                <h4 class="h5 mb-1 fw-bold">✍️ Jurnal & Esai Bebas <span class="badge-count">{{ jumlah_esai }}</span></h4>
                                 <p class="text-muted small mb-0">Kumpulan perenungan harian & ide acak.</p>
                             </div>
                         </div>
@@ -260,47 +262,47 @@ HTML_INDEX = f"""
             </a>
         </div>
 
-        {{% for tema in tema_list %}}
-        <div class="col-md-6 kategori-item" data-nama="{{{{ tema.nama }}}}">
+        {% for tema in tema_list %}
+        <div class="col-md-6 kategori-item" data-nama="{{ tema.nama }}">
             <div class="card-gold p-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <a href="/tema/{{{{ tema.id }}}}" class="text-decoration-none d-flex align-items-center flex-grow-1">
+                    <a href="/tema/{{ tema.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1">
                         <i class="fa-solid fa-folder-open text-warning me-3 fs-4"></i>
-                        <h4 class="h5 mb-0 fw-bold">{{{{ tema.nama }}}} <span class="badge-count">{{{{ tema.buku_list|length }}}}</span></h4>
+                        <h4 class="h5 mb-0 fw-bold">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
                     </a>
-                    {{% if is_admin %}}
-                    <form action="/hapus-tema/{{{{ tema.id }}}}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                    {% if is_admin %}
+                    <form action="/hapus-tema/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus beserta semua isinya?');">
                         <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
                     </form>
-                    {{% endif %}}
+                    {% endif %}
                 </div>
-                <small class="text-muted ms-4">Dibuat: {{{{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }}}} &rarr;</small>
+                <small class="text-muted ms-4">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }} &rarr;</small>
             </div>
         </div>
-        {{% endfor %}}
+        {% endfor %}
     </div>
 </div>
 
 <script>
-function jalankanPencarian(kata) {{
-    document.querySelectorAll('.kategori-item').forEach(item => {{
+function jalankanPencarian(kata) {
+    document.querySelectorAll('.kategori-item').forEach(item => {
         const nama = item.getAttribute('data-nama').toLowerCase();
         item.style.display = kata === '' || nama.includes(kata.toLowerCase()) ? '' : 'none';
-    }});
-}}
-function filterKategori(nama) {{
+    });
+}
+function filterKategori(nama) {
     document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-filter="${{nama}}"]`).classList.add('active');
-    document.querySelectorAll('.kategori-item').forEach(item => {{
+    document.querySelector(`[data-filter="${nama}"]`).classList.add('active');
+    document.querySelectorAll('.kategori-item').forEach(item => {
         item.style.display = nama === 'semua' || item.getAttribute('data-nama') === nama ? '' : 'none';
-    }});
-}}
+    });
+}
 </script>
 </body>
 </html>
 """
 
-HTML_ESAI_PENULIS = f"""
+HTML_ESAI_PENULIS = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -311,8 +313,8 @@ HTML_ESAI_PENULIS = f"""
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>{CSS_SHARED}</style>
-    {JS_THEME_SCRIPT}
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
 </head>
 <body>
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
@@ -324,7 +326,7 @@ HTML_ESAI_PENULIS = f"""
     <div class="card-gold p-4 rounded-4 mb-4">
         <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI</span>
         <h2 class="h3 fw-bold text-warning mb-1">✍️ Jurnal & Esai Bebas Penulis</h2>
-        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian. Total: {{{{ esai_list|length }}}} karya.</p>
+        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian. Total: {{ esai_list|length }} karya.</p>
     </div>
     
     <div class="search-box mb-4">
@@ -332,7 +334,7 @@ HTML_ESAI_PENULIS = f"""
         <input type="text" class="form-control" placeholder="Cari judul atau isi..." oninput="filterEsai(this.value)">
     </div>
 
-    {{% if is_admin %}}
+    {% if is_admin %}
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai Baru</h6>
         <form action="/tambah-esai" method="POST">
@@ -342,61 +344,61 @@ HTML_ESAI_PENULIS = f"""
             <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan Catatan</button>
         </form>
     </div>
-    {{% endif %}}
+    {% endif %}
 
-    {{% for e in esai_list %}}
+    {% for e in esai_list %}
     <div class="card-gold p-4 mb-3 esai-item">
-        {{% if is_admin %}}
-        <form action="/hapus-esai/{{{{ e.id }}}}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
+        {% if is_admin %}
+        <form action="/hapus-esai/{{ e.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
             <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
         </form>
-        {{% endif %}}
-        <span class="badge bg-info text-dark mb-2">{{{{ e.kategori }}}}</span>
-        <h4 class="text-warning fw-bold mb-3 esai-judul">{{{{ e.judul }}}}</h4>
-        <div class="markdown-body" id="content-esai-{{{{ e.id }}}}"></div>
-        <textarea id="raw-esai-{{{{ e.id }}}}" style="display:none;">{{{{ e.isi }}}}</textarea>
-        <div class="text-muted small mt-3">Dibuat: {{{{ e.dibuat_pada.strftime('%d %b %Y %H:%M') if e.dibuat_pada else '-' }}}}</div>
+        {% endif %}
+        <span class="badge bg-info text-dark mb-2">{{ e.kategori }}</span>
+        <h4 class="text-warning fw-bold mb-3 esai-judul">{{ e.judul }}</h4>
+        <div class="markdown-body" id="content-esai-{{ e.id }}"></div>
+        <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
+        <div class="text-muted small mt-3">Dibuat: {{ e.dibuat_pada.strftime('%d %b %Y %H:%M') if e.dibuat_pada else '-' }}</div>
     </div>
-    {{% else %}}
+    {% else %}
     <div class="text-center py-5 card-gold rounded-4">
         <i class="fa-solid fa-feather fs-1 text-muted mb-2"></i>
         <p class="text-muted mb-0">Belum ada jurnal atau esai.</p>
     </div>
-    {{% endfor %}}
+    {% endfor %}
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){{
-    marked.use({{ gfm: true, breaks: true }});
-    {{% for e in esai_list %}}
-        var rawText = document.getElementById('raw-esai-{{{{ e.id }}}}').value;
-        document.getElementById('content-esai-{{{{ e.id }}}}').innerHTML = marked.parse(rawText);
-    {{% endfor %}}
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for e in esai_list %}
+        var rawText = document.getElementById('raw-esai-{{ e.id }}').value;
+        document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
 
-    filterEsai = function(kata) {{
-        document.querySelectorAll('.esai-item').forEach(item => {{
+    filterEsai = function(kata) {
+        document.querySelectorAll('.esai-item').forEach(item => {
             const judul = item.querySelector('.esai-judul').textContent.toLowerCase();
             item.style.display = kata === '' || judul.includes(kata.toLowerCase()) ? '' : 'none';
-        }});
-    }};
-}});
+        });
+    };
+});
 </script>
 </body>
 </html>
 """
 
-HTML_TEMA = f"""
+HTML_TEMA = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tema: {{{{ tema.nama }}}}</title>
+    <title>Tema: {{ tema.nama }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>{CSS_SHARED}</style>
-    {JS_THEME_SCRIPT}
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
 </head>
 <body>
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
@@ -405,60 +407,60 @@ HTML_TEMA = f"""
 
 <div class="container py-5" style="max-width:850px;">
     <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 shadow-sm" style="font-weight:600;"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Semua Tema</a>
-    <div class="card-gold p-4 mb-4 rounded-4 border">
+    <div class="card-gold p-4 mb-4 rounded-4">
         <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-folder-open me-1"></i> Kategori Karya</span>
-        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{{{ tema.nama }}}}</h2>
-        <small class="text-muted">Dibuat: {{{{ tema.dibuat_pada.strftime('%d %b %Y %H:%M') if tema.dibuat_pada else '-' }}}} &nbsp;|&nbsp; Jumlah Buku: {{{{ buku_list|length }}}}</small>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{ tema.nama }}</h2>
+        <small class="text-muted">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y %H:%M') if tema.dibuat_pada else '-' }} &nbsp;|&nbsp; Jumlah Buku: {{ buku_list|length }}</small>
     </div>
     
-    {{% if is_admin %}}
+    {% if is_admin %}
     <div class="card-gold p-3 mb-4 rounded-3">
         <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-book-medical me-1"></i> Tambah Buku Baru</h6>
         <form action="/tambah-buku" method="POST" class="row g-2">
-            <input type="hidden" name="tema_id" value="{{{{ tema.id }}}}">
+            <input type="hidden" name="tema_id" value="{{ tema.id }}">
             <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
             <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul (Opsional)"></div>
             <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan Penulis..."></textarea></div>
             <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
         </form>
     </div>
-    {{% endif %}}
+    {% endif %}
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Buku Tersimpan:</h5>
     <div class="row g-3">
-        {{% for buku in buku_list %}}
+        {% for buku in buku_list %}
         <div class="col-12">
             <div class="card-gold p-4">
                 <div class="d-flex justify-content-between align-items-center">
-                    <a href="/buku/{{{{ buku.id }}}}" class="text-decoration-none flex-grow-1">
+                    <a href="/buku/{{ buku.id }}" class="text-decoration-none flex-grow-1">
                         <div class="d-flex align-items-center">
                             <i class="fa-solid fa-file-lines text-warning fs-4 me-3"></i>
                             <div>
-                                <h4 class="h5 mb-1 fw-bold">{{{{ buku.judul.upper() }}}}</h4>
-                                {{{% if buku.subjudul %}}}<p class="text-muted small mb-0">{{{{ buku.subjudul }}}}</p>{{{% endif %}}}
+                                <h4 class="h5 mb-1 fw-bold">{{ buku.judul.upper() }}</h4>
+                                {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
                             </div>
                         </div>
                     </a>
-                    {{% if is_admin %}}
-                    <form action="/hapus-buku/{{{{ buku.id }}}}/{{{{ tema.id }}}}" method="POST" onsubmit="return confirm('Hapus buku ini?');">
+                    {% if is_admin %}
+                    <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" onsubmit="return confirm('Hapus buku ini?');">
                         <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
                     </form>
-                    {{% endif %}}
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {{% else %}}
+        {% else %}
         <div class="text-center py-4 card-gold rounded-4">
             <p class="text-muted mb-0">Belum ada buku dalam tema ini.</p>
         </div>
-        {{% endfor %}}
+        {% endfor %}
     </div>
 </div>
 </body>
 </html>
 """
 
-HTML_STATISTIK = f"""
+HTML_STATISTIK = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -467,11 +469,11 @@ HTML_STATISTIK = f"""
     <title>Statistik - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>{CSS_SHARED}
-        .stat-card {{ text-align:center; }}
-        .stat-number {{ font-size:42px; font-weight:800; color:#b38728; }}
+    <style>""" + CSS_SHARED + """
+        .stat-card { text-align:center; }
+        .stat-number { font-size:42px; font-weight:800; color:#b38728; }
     </style>
-    {JS_THEME_SCRIPT}
+    """ + JS_THEME_SCRIPT + """
 </head>
 <body>
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
@@ -482,22 +484,22 @@ HTML_STATISTIK = f"""
     <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
     <h3 class="mb-4 text-center fw-bold">📊 Statistik Perpustakaan</h3>
     <div class="row g-3">
-        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i><div class="stat-number">{{{{ total_tema }}}}</div><div class="text-muted">Kategori</div></div></div>
-        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-book fs-1 text-primary mb-2"></i><div class="stat-number">{{{{ total_buku }}}}</div><div class="text-muted">Jumlah Buku</div></div></div>
-        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i><div class="stat-number">{{{{ total_catatan }}}}</div><div class="text-muted">Catatan / Bab</div></div></div>
-        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i><div class="stat-number">{{{{ total_esai }}}}</div><div class="text-muted">Esai / Jurnal</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-folder-tree fs-1 text-warning mb-2"></i><div class="stat-number">{{ total_tema }}</div><div class="text-muted">Kategori</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-book fs-1 text-primary mb-2"></i><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Jumlah Buku</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-file-lines fs-1 text-info mb-2"></i><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Catatan / Bab</div></div></div>
+        <div class="col-6"><div class="card-gold stat-card p-4"><i class="fa-solid fa-pen-nib fs-1 text-success mb-2"></i><div class="stat-number">{{ total_esai }}</div><div class="text-muted">Esai / Jurnal</div></div></div>
     </div>
     <div class="card-gold stat-card p-4 mt-4">
         <h6 class="fw-bold mb-3">📅 Ringkasan Aktivitas</h6>
-        <p>Buku baru: <strong>{{{{ buku_bulan_ini }}}}</strong> &nbsp;|&nbsp; Esai baru: <strong>{{{{ esai_bulan_ini }}}}</strong></p>
-        <p class="mb-0">Total kata diperkirakan: <strong>{{{{ total_kata }}}}</strong> kata</p>
+        <p>Buku baru: <strong>{{ buku_bulan_ini }}</strong> &nbsp;|&nbsp; Esai baru: <strong>{{ esai_bulan_ini }}</strong></p>
+        <p class="mb-0">Total kata diperkirakan: <strong>{{ total_kata }}</strong> kata</p>
     </div>
 </div>
 </body>
 </html>
 """
 
-HTML_TONG_SAMPAH = f"""
+HTML_TONG_SAMPAH = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -506,8 +508,8 @@ HTML_TONG_SAMPAH = f"""
     <title>Tong Sampah - Dede Suhendra</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>{CSS_SHARED}</style>
-    {JS_THEME_SCRIPT}
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
 </head>
 <body>
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
@@ -518,26 +520,26 @@ HTML_TONG_SAMPAH = f"""
     <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
     <h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>
     <p class="text-muted small mb-4">Item bisa dipulihkan atau dihapus permanen.</p>
-    {{% if sampah_list %}}
-        {{% for item in sampah_list %}}
+    {% if sampah_list %}
+        {% for item in sampah_list %}
         <div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center flex-row flex-wrap gap-2">
             <div>
-                <span class="badge bg-secondary me-2">{{{{ item.tipe }}}}</span>
-                <span>{{{{ item.data_json }}}}</span>
-                <div class="text-muted small mt-1">Dihapus: {{{{ item.dihapus_pada.strftime('%d %b %Y %H:%M') }}}}</div>
+                <span class="badge bg-secondary me-2">{{ item.tipe }}</span>
+                <span>{{ item.data_json }}</span>
+                <div class="text-muted small mt-1">Dihapus: {{ item.dihapus_pada.strftime('%d %b %Y %H:%M') }}</div>
             </div>
             <div class="d-flex gap-2">
-                <a href="/pulihkan/{{{{ item.id }}}}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i> Pulihkan</a>
-                <a href="/hapus-permanen/{{{{ item.id }}}}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen?')"><i class="fa-solid fa-trash-xmark"></i></a>
+                <a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i> Pulihkan</a>
+                <a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger" onclick="return confirm('Hapus permanen?')"><i class="fa-solid fa-trash-xmark"></i></a>
             </div>
         </div>
-        {{% endfor %}}
+        {% endfor %}
         <form action="/kosongkan-tong-sampah" method="POST" onsubmit="return confirm('Kosongkan semua?')">
             <button type="submit" class="btn btn-danger w-100 mt-3">🗑️ Kosongkan Tong Sampah</button>
         </form>
-    {{% else %}}
+    {% else %}
         <div class="text-center py-5 card-gold rounded-4"><i class="fa-solid fa-trash-can-check fs-1 text-muted mb-2"></i><p class="text-muted">Tong sampah kosong.</p></div>
-    {{% endif %}}
+    {% endif %}
 </div>
 </body>
 </html>
@@ -854,5 +856,3 @@ def backup_db():
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
-
-app = app
