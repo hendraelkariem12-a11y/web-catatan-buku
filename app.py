@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, request, redirect, render_template_string, session, Response, jsonify
+from flask import Flask, request, redirect, render_template_string, session, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -43,7 +43,6 @@ class Catatan(db.Model):
 
 with app.app_context():
     db.create_all()
-    # Inisialisasi Tema Default jika kosong
     if Tema.query.count() == 0:
         db.session.add_all([
             Tema(nama='Filsafat'),
@@ -52,8 +51,13 @@ with app.app_context():
         ])
         db.session.commit()
 
+# Route khusus membaca profile.jpg dari folder utama
+@app.route('/profile.jpg')
+def serve_profile():
+    return send_from_directory('.', 'profile.jpg')
+
 # --------------------------------------------------
-# TEMPLATE HTML (BUILT-IN INLINE)
+# TEMPLATE HTML
 # --------------------------------------------------
 
 HTML_INDEX = """
@@ -114,6 +118,23 @@ HTML_INDEX = """
 
     <h5 class="fw-bold mb-3" style="font-family: 'Cinzel', serif; color: #1e293b;">Pilih Tema / Kategori Karya:</h5>
     <div class="row g-3">
+        <div class="col-12">
+            <a href="/penulis" class="text-decoration-none">
+                <div class="card-gold card-penulis p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
+                            <div>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">Karya Spesial</span>
+                                <h4 class="title-gold h5 mb-1">✍️ Catatan Penulis</h4>
+                                <p class="text-muted small mb-0">Rangkuman pemikiran mendalam & jurnal esensial penulis.</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
         {% for tema in tema_list %}
         <div class="col-md-6">
             <div class="card-gold p-4">
@@ -134,6 +155,185 @@ HTML_INDEX = """
         {% endfor %}
     </div>
 </div>
+</body>
+</html>
+"""
+
+HTML_PENULIS = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catatan Penulis - Dede Suhendra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
+        .container { max-width: 760px; margin: 0 auto; }
+        .btn-back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+        .btn-back:hover { color: var(--accent); }
+        .card-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .card-title { font-size: 18px; font-weight: 800; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; }
+        .card-p { color: #cbd5e1; font-size: 14px; margin-bottom: 12px; }
+
+        .timeline { position: relative; border-left: 2px solid var(--border); padding-left: 18px; margin-top: 10px; margin-left: 6px; }
+        .timeline-item { position: relative; margin-bottom: 16px; }
+        .timeline-item::before { content: ""; position: absolute; left: -24px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+        .timeline-year { font-size: 12px; font-weight: 800; color: var(--accent); }
+        .timeline-title { font-size: 14px; font-weight: 700; color: var(--text); }
+        .timeline-desc { font-size: 13px; color: var(--muted); }
+
+        .list-custom { list-style: none; padding-left: 0; }
+        .list-custom li { font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding-left: 24px; position: relative; }
+        .list-custom li::before { content: "🎯"; position: absolute; left: 0; font-size: 13px; }
+
+        .appreciation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
+        .app-item { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 13px; color: #cbd5e1; }
+        .app-name { font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="/" class="btn-back">&larr; Kembali ke Utama</a>
+
+    <!-- 1. PROFIL PENULIS -->
+    <div class="card-box" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 3px solid #38bdf8; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2); margin: 0 auto; display: block;">
+
+        <div style="flex: 1; min-width: 250px;">
+            <h2 class="card-title" style="border-bottom: none; padding-bottom: 0; margin-bottom: 8px;">👨‍💻 Profil Penulis</h2>
+            <p class="card-p">Selamat datang di ruang pustaka pribadi karya dan catatan saya. Perkenalkan, nama saya <strong>Dede Suhendra</strong>, lahir pada tanggal <strong>8 Juli 2001</strong> dan berasal dari <strong>Subang</strong>.</p>
+            <p class="card-p" style="margin-bottom: 0;">Halaman ini dihadirkan sebagai wadah dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun secara terstruktur.</p>
+        </div>
+    </div>
+
+    <!-- 2. PERJUANGAN & LATAR BELAKANG PENULISAN -->
+    <div class="card-box">
+        <h2 class="card-title">✍️ Perjuangan & Latar Belakang Penulisan</h2>
+        <p class="card-p">Setiap tulisan dan modul yang ada di dalam ruang ini lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian dan dinamika perjuangan hidup, saya memanfaatkan setiap sisa-sisa waktu luang yang ada untuk tetap konsisten menulis dan mendokumentasikan ilmu.</p>
+        <p class="card-p">Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana untuk merefleksikan setiap tahap pembelajaran hidup agar bermanfaat secara luas dan berkelanjutan.</p>
+    </div>
+
+    <!-- 3. RIWAYAT PENDIDIKAN & PENGALAMAN -->
+    <div class="card-box">
+        <h2 class="card-title">📜 Riwayat Pendidikan & Pengalaman Perjalanan</h2>
+
+        <h4 style="color: var(--accent); font-size: 14px; margin-top: 10px; margin-bottom: 10px;">🎓 Riwayat Pendidikan:</h4>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-year">2013</div>
+                <div class="timeline-title">SDN Sindang Laut II</div>
+                <div class="timeline-desc">Lulus Pendidikan Sekolah Dasar</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2013 – 2015</div>
+                <div class="timeline-title">Pondok Pesantren Madinatul Musthofa</div>
+                <div class="timeline-desc">Menempuh Pendidikan Pesantren Tahap Awal</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2015 – 2016</div>
+                <div class="timeline-title">Pondok Tahfidz Qur'an</div>
+                <div class="timeline-desc">Fokus Menghafal Al-Qur'an</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2016 – 2019</div>
+                <div class="timeline-title">Pondok Pesantren Madinatul Musthofa</div>
+                <div class="timeline-desc">Melanjutkan Studi Keagamaan & Pesantren</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2019 – 2022</div>
+                <div class="timeline-title">Pondok Modern Darussalam Gontor</div>
+                <div class="timeline-desc">Menempuh Pendidikan di KMI Gontor</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2022 – 2023</div>
+                <div class="timeline-title">Pengabdian Gontor Kampus 2 & UNIDA Gontor</div>
+                <div class="timeline-desc">Mengabdi di PMDG Kampus 2 sambil menempuh kuliah Jurusan Studi Agama-Agama UNIDA Gontor</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2023 – 2025</div>
+                <div class="timeline-title">Pengajar Ponpes Madinatul Musthofa & STISQ AL-IHYA Subang</div>
+                <div class="timeline-desc">Mengajar di Ponpes Madinatun Mustofa sambil menempuh kuliah Jurusan Ilmu Al-Qur'an dan Tafsir (IAT) di STIESKU Subang</div>
+            </div>
+        </div>
+
+        <h4 style="color: var(--accent); font-size: 14px; margin-top: 20px; margin-bottom: 10px;">💼 Pengalaman Kerja & Khidmat:</h4>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-year">2025</div>
+                <div class="timeline-title">Gudang Shopee (Tangerang)</div>
+                <div class="timeline-desc">Pengalaman Kerja Operasional Logistik</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2025</div>
+                <div class="timeline-title">Karyawan Fotokopi (Jakarta Pusat)</div>
+                <div class="timeline-desc">Menjaga & Mengelola Operasional Toko Fotokopi</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">2025</div>
+                <div class="timeline-title">Barista & Chef / Tukang Masak (Bogor)</div>
+                <div class="timeline-desc">Menggabungkan Peran Sebagai Barista Minuman & Penanggung Jawab Dapur Makanan</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-year">Sekarang</div>
+                <div class="timeline-title">Imam dan Muadzin & Pengajar Al-Qur'an (Tangerang)</div>
+                <div class="timeline-desc">Mengurus Kemakmuran Masjid dan Mengajar Pengajian Al-Qur'an Anak-anak</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. VISI & MISI -->
+    <div class="card-box">
+        <h2 class="card-title">🎯 Visi & Misi Penulisan</h2>
+        <p class="card-p"><strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri yang berkelanjutan, dan ladang manfaat yang terstruktur.</p>
+        <div style="margin-top: 10px;">
+            <p class="card-p"><strong>Misi:</strong></p>
+            <ul class="list-custom">
+                <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
+                <li>Mendokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
+                <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 5. APRESIASI & UCAPAN TERIMA KASIH -->
+    <div class="card-box">
+        <h2 class="card-title">🙏 Apresiasi & Penghargaan Serta Rasa Syukur</h2>
+        <p class="card-p">Rasa syukur dan terima kasih yang mendalam saya persembahkan kepada orang-orang terkasih yang selalu menjadi sumber kekuatan, doa, dan inspirasi dalam hidup saya:</p>
+
+        <div class="appreciation-grid">
+            <div class="app-item">
+                <div class="app-name">👨‍👦 Bapak Khairudin</div>
+                <div>Selaku ayah tercinta yang senantiasa memberikan doa, kerja keras, dan bimbingan tanpa henti.</div>
+            </div>
+            <div class="app-item">
+                <div class="app-name">💐 Ibu Sumini (Almarhumah)</div>
+                <div>Almarhumah ibu tercinta. Semoga Allah ﷻ mengampuni dosa-dosanya, mengangkat derajatnya, dan menempatkan beliau di tempat terbaik di sisi-Nya.</div>
+            </div>
+            <div class="app-item">
+                <div class="app-name">👫 Siti Aisyah & Muhammad Naimul Ilmi</div>
+                <div>Adik-adik tersayang yang selalu menjadi kebanggaan dan penyemangat dalam melangkah.</div>
+            </div>
+            <div class="app-item">
+                <div class="app-name">👦 Muhammad Aji</div>
+                <div>Kakak tercinta atas kebersamaan, support, dan persaudaraan yang luar biasa.</div>
+            </div>
+            <div class="app-item">
+                <div class="app-name">❤️ Sri Nur Safitri</div>
+                <div>Kekasih tercinta yang selalu memberikan perhatian, dorongan semangat, dan menemani setiap proses perjalanan.</div>
+            </div>
+            <div class="app-item">
+                <div class="app-name">🤝 Sahabat & Kolega</div>
+                <div>Seluruh teman-teman, guru-guru, rekan seperjuangan, dan kolega yang tidak bisa disebutkan satu per satu atas segala doa dan dukungannya.</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
 </body>
 </html>
 """
@@ -328,35 +528,6 @@ HTML_LOGIN = """
             <a href="/" class="text-muted text-decoration-none small">&larr; Kembali ke Utama</a>
         </div>
     </div>
-</body>
-</html>
-"""
-
-HTML_PENULIS = """
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catatan Penulis - Dede Suhendra</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #0b132b; color: #f8fafc; padding: 20px; }
-        .card-box { background: #1c2541; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-    </style>
-</head>
-<body>
-<div class="container py-4" style="max-width: 760px;">
-    <a href="/" class="btn btn-outline-light btn-sm mb-4">&larr; Kembali ke Utama</a>
-    <div class="card-box">
-        <h3 class="text-info fw-bold mb-3">👨‍💻 Profil Penulis</h3>
-        <p>Perkenalkan, nama saya <strong>Dede Suhendra</strong>, lahir pada tanggal <strong>8 Juli 2001</strong> dan berasal dari <strong>Subang</strong>. Halaman ini dihadirkan sebagai wadah dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun secara terstruktur.</p>
-    </div>
-    <div class="card-box">
-        <h4 class="text-info fw-bold mb-3">✍️ Perjuangan Penulisan</h4>
-        <p>Setiap tulisan lahir dari proses belajar konsisten di tengah dinamika kehidupan untuk mengikat ilmu dan memberi manfaat luas.</p>
-    </div>
-</div>
 </body>
 </html>
 """
