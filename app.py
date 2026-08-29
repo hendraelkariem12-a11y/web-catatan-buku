@@ -1,6 +1,8 @@
 import os
+import re
 import json
 from io import BytesIO
+from html import escape
 from datetime import datetime
 from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
@@ -690,26 +692,69 @@ def catatan_penulis():
 
 @app.route('/cetak-esai-pdf/<int:esai_id>')
 def cetak_esai_pdf(esai_id):
-    esai = EsaiPenulis.query.get_or_404(esai_id)
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, leading=22, textColor='#b38728', spaceAfter=10)
-    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor='#64748b', spaceAfter=15)
-    body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=11, leading=16, textColor='#1e293b')
-    
-    story = [
-        Paragraph(f"<b>{esai.judul}</b>", title_style),
-        Paragraph(f"Kategori: {esai.kategori} | Penulis: Dede Suhendra", meta_style),
-        Spacer(1, 10),
-        Paragraph(esai.isi.replace('\n', '<br/>'), body_style)
-    ]
-    
-    doc.build(story)
-    buffer.seek(0)
-    filename = f"{esai.judul.replace(' ', '_')}.pdf"
-    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+    try:
+        esai = EsaiPenulis.query.get_or_404(esai_id)
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=letter, 
+            rightMargin=40, 
+            leftMargin=40, 
+            topMargin=40, 
+            bottomMargin=40
+        )
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle', 
+            parent=styles['Heading1'], 
+            fontSize=16, 
+            leading=20, 
+            textColor='#b38728', 
+            spaceAfter=10
+        )
+        meta_style = ParagraphStyle(
+            'MetaStyle', 
+            parent=styles['Normal'], 
+            fontSize=9, 
+            leading=12, 
+            textColor='#64748b', 
+            spaceAfter=15
+        )
+        body_style = ParagraphStyle(
+            'BodyStyle', 
+            parent=styles['Normal'], 
+            fontSize=10, 
+            leading=15, 
+            textColor='#1e293b'
+        )
+        
+        judul_bersih = escape(esai.judul)
+        kategori_bersih = escape(esai.kategori)
+        isi_bersih = escape(esai.isi).replace('\n', '<br/>')
+        
+        story = [
+            Paragraph(f"<b>{judul_bersih}</b>", title_style),
+            Paragraph(f"Kategori: {kategori_bersih} | Penulis: Dede Suhendra", meta_style),
+            Spacer(1, 10),
+            Paragraph(isi_bersih, body_style)
+        ]
+        
+        doc.build(story)
+        buffer.seek(0)
+        
+        nama_file_safe = re.sub(r'[^a-zA-Z0-9_]', '', esai.judul.replace(' ', '_'))
+        if not nama_file_safe:
+            nama_file_safe = f"esai_{esai.id}"
+            
+        return send_file(
+            buffer, 
+            as_attachment=True, 
+            download_name=f"{nama_file_safe}.pdf", 
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        return f"<div style='padding:20px; font-family:sans-serif;'><h3>⚠️ Gagal Membuat PDF</h3><p>Error: {str(e)}</p><a href='/catatan-penulis'>Kembali</a></div>", 500
 
 @app.route('/tambah-esai', methods=['POST'])
 def tambah_esai():
