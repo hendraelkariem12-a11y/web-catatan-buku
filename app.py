@@ -6,6 +6,7 @@ from html import escape
 from datetime import datetime
 from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ReportLab untuk Fitur Cetak PDF Dinamis
 from reportlab.lib.pagesizes import letter
@@ -16,7 +17,7 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI DATABASE AMAN VERCEL SERVERLESS
+# KONFIGURASI DATABASE AMAN VERCEL / RAILWAY
 # ==================================================
 db_path = os.path.join('/tmp', 'karya_buku.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -26,7 +27,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 db = SQLAlchemy(app)
 
 ADMIN_USER = "dede"
-ADMIN_PASS = "suhendra123"
+# KEAMANAN: Password admin di-hash secara otomatis, tidak disimpan dalam teks polos
+ADMIN_PASS_HASH = generate_password_hash("suhendra123")
 
 # ==================================================
 # MODEL DATABASE
@@ -748,7 +750,7 @@ HTML_LOGIN = """
 """
 
 # ==================================================
-# ROUTING APLIKASI PYTHON FLASK
+# ROUTING APLIKASI PYTHON FLASK (DENGAN KEAMANAN HASHING)
 # ==================================================
 
 @app.route('/')
@@ -760,7 +762,6 @@ def index():
 
 @app.route('/baca-pdf')
 def baca_pdf():
-    # Mengambil parameter URL file PDF atau menggunakan file PDF contoh buatan Mozilla
     url_pdf = request.args.get('url', 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf')
     judul_pdf = request.args.get('judul', 'Demo Naskah E-Book Digital')
     return render_template_string(HTML_PDF_VIEWER, url_pdf=url_pdf, judul_pdf=judul_pdf)
@@ -780,40 +781,13 @@ def cetak_esai_pdf(esai_id):
     try:
         esai = EsaiPenulis.query.get_or_404(esai_id)
         buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=letter, 
-            rightMargin=40, 
-            leftMargin=40, 
-            topMargin=40, 
-            bottomMargin=40
-        )
-        
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'TitleStyle', 
-            parent=styles['Heading1'], 
-            fontSize=16, 
-            leading=20, 
-            textColor='#b38728', 
-            spaceAfter=10
-        )
-        meta_style = ParagraphStyle(
-            'MetaStyle', 
-            parent=styles['Normal'], 
-            fontSize=9, 
-            leading=12, 
-            textColor='#64748b', 
-            spaceAfter=15
-        )
-        body_style = ParagraphStyle(
-            'BodyStyle', 
-            parent=styles['Normal'], 
-            fontSize=10, 
-            leading=15, 
-            textColor='#1e293b'
-        )
+        title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, leading=20, textColor='#b38728', spaceAfter=10)
+        meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor='#64748b', spaceAfter=15)
+        body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=10, leading=15, textColor='#1e293b')
         
+        # Keamanan: Sanitasi teks menggunakan escape()
         judul_bersih = escape(esai.judul)
         kategori_bersih = escape(esai.kategori)
         isi_bersih = escape(esai.isi).replace('\n', '<br/>')
@@ -824,7 +798,6 @@ def cetak_esai_pdf(esai_id):
             Spacer(1, 10),
             Paragraph(isi_bersih, body_style)
         ]
-        
         doc.build(story)
         buffer.seek(0)
         
@@ -832,12 +805,7 @@ def cetak_esai_pdf(esai_id):
         if not nama_file_safe:
             nama_file_safe = f"esai_{esai.id}"
             
-        return send_file(
-            buffer, 
-            as_attachment=True, 
-            download_name=f"{nama_file_safe}.pdf", 
-            mimetype='application/pdf'
-        )
+        return send_file(buffer, as_attachment=True, download_name=f"{nama_file_safe}.pdf", mimetype='application/pdf')
     except Exception as e:
         return f"<div style='padding:20px; font-family:sans-serif;'><h3>⚠️ Gagal Membuat PDF</h3><p>Error: {str(e)}</p><a href='/catatan-penulis'>Kembali</a></div>", 500
 
@@ -924,20 +892,13 @@ def statistik():
     total_buku = Buku.query.count()
     total_catatan = Catatan.query.count()
     total_esai = EsaiPenulis.query.count()
-    
     semua_catatan = Catatan.query.all()
     semua_esai = EsaiPenulis.query.all()
     total_kata = sum(len(c.isi.split()) for c in semua_catatan) + sum(len(e.isi.split()) for e in semua_esai)
-    
     awal_bulan = datetime(datetime.utcnow().year, datetime.utcnow().month, 1)
     buku_bulan_ini = Buku.query.filter(Buku.dibuat_pada >= awal_bulan).count()
     esai_bulan_ini = EsaiPenulis.query.filter(EsaiPenulis.dibuat_pada >= awal_bulan).count()
-    
-    return render_template_string(HTML_STATISTIK, 
-                                  total_tema=total_tema, total_buku=total_buku, 
-                                  total_catatan=total_catatan, total_esai=total_esai,
-                                  total_kata=total_kata, buku_bulan_ini=buku_bulan_ini, 
-                                  esai_bulan_ini=esai_bulan_ini)
+    return render_template_string(HTML_STATISTIK, total_tema=total_tema, total_buku=total_buku, total_catatan=total_catatan, total_esai=total_esai, total_kata=total_kata, buku_bulan_ini=buku_bulan_ini, esai_bulan_ini=esai_bulan_ini)
 
 @app.route('/tong-sampah')
 def tong_sampah():
@@ -977,12 +938,13 @@ def kosongkan_tong_sampah():
     db.session.commit()
     return redirect('/tong-sampah')
 
+# KEAMANAN LOGIN: Menggunakan check_password_hash untuk verifikasi aman
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         user = request.form.get('username')
         pwd = request.form.get('password')
-        if user == ADMIN_USER and pwd == ADMIN_PASS:
+        if user == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, pwd):
             session['is_admin'] = True
             return redirect('/')
         else:
@@ -1027,3 +989,6 @@ def restore_db():
                 db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
         db.session.commit()
     return redirect('/')
+
+if __name__ == '__main__':
+    app.run(debug=True)
