@@ -108,6 +108,12 @@ class TongSampah(db.Model):
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
+class LogAktivitas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    aksi = db.Column(db.String(200), nullable=False)
+    keterangan = db.Column(db.Text, nullable=True)
+    waktu = db.Column(db.DateTime, default=datetime.utcnow)
+
 with app.app_context():
     db.create_all()
     if Tema.query.count() == 0:
@@ -126,6 +132,11 @@ def serve_profile():
 def masukkan_sampah(tipe, data_dict):
     item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
     db.session.add(item)
+    db.session.commit()
+
+def catat_log(aksi, keterangan=""):
+    log_baru = LogAktivitas(aksi=aksi, keterangan=keterangan)
+    db.session.add(log_baru)
     db.session.commit()
 
 # ==================================================
@@ -284,6 +295,7 @@ HTML_INDEX = """
             <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
             <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
             {% if is_admin %}
+                <a href="/riwayat-log" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-list-check me-1 text-warning"></i> Log</a>
                 <a href="/backup" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1 text-primary"></i> Backup</a>
                 <button type="button" class="btn btn-custom-outline rounded-pill btn-sm fw-bold text-success" data-bs-toggle="modal" data-bs-target="#restoreModal"><i class="fa-solid fa-upload me-1"></i> Restore</button>
                 <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
@@ -834,6 +846,51 @@ HTML_TONG_SAMPAH = """
 </html>
 """
 
+HTML_LOG = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Log - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-4" style="max-width:750px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali</a>
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h4 class="fw-bold mb-1 text-warning"><i class="fa-solid fa-list-check me-2"></i> Riwayat Aktivitas Sistem</h4>
+        <p class="text-muted small mb-0">Audit trail seluruh aksi penting yang terjadi pada platform.</p>
+    </div>
+    
+    <div class="d-flex flex-column gap-2">
+        {% for l in logs %}
+        <div class="card-gold p-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="badge bg-warning text-dark fw-bold">{{ l.aksi }}</span>
+                <small class="text-muted">{{ l.waktu.strftime('%d %b %Y %H:%M:%S') }}</small>
+            </div>
+            <p class="mb-0 small text-main">{{ l.keterangan }}</p>
+        </div>
+        {% else %}
+        <div class="text-center py-5 card-gold rounded-4">
+            <i class="fa-solid fa-clock-rotate-left fs-1 text-muted mb-2"></i>
+            <p class="text-muted mb-0">Belum ada aktivitas tercatat.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+</body>
+</html>
+"""
+
 HTML_PENULIS = """
 <!DOCTYPE html>
 <html lang="id">
@@ -995,6 +1052,7 @@ def upload_pdf():
     if file and file.filename.endswith('.pdf'):
         filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
         file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+        catat_log("UPLOAD PDF", f"Mengunggah file PDF: {filename}")
         app.logger.info(f"File PDF berhasil di-upload: {filename}")
     return redirect('/baca-pdf')
 
@@ -1056,6 +1114,7 @@ def tambah_esai():
         e = EsaiPenulis(judul=judul, kategori=kategori, isi=isi)
         db.session.add(e)
         db.session.commit()
+        catat_log("TAMBAH ESAI", f"Menulis esai baru: {judul}")
         app.logger.info(f"Esai baru berhasil ditambahkan: {judul}")
     return redirect('/catatan-penulis')
 
@@ -1068,6 +1127,7 @@ def hapus_esai(esai_id):
         masukkan_sampah('esai', {'judul': e.judul, 'kategori': e.kategori, 'isi': e.isi})
         db.session.delete(e)
         db.session.commit()
+        catat_log("HAPUS ESAI", f"Menghapus esai: {e.judul}")
         app.logger.info(f"Esai dihapus (masuk tong sampah): {e.judul}")
     return redirect('/catatan-penulis')
 
@@ -1086,6 +1146,7 @@ def tambah_tema():
     if nama:
         db.session.add(Tema(nama=nama))
         db.session.commit()
+        catat_log("TAMBAH TEMA", f"Membuat kategori tema baru: {nama}")
         app.logger.info(f"Tema baru ditambahkan: {nama}")
     return redirect('/')
 
@@ -1098,6 +1159,7 @@ def hapus_tema(tema_id):
         masukkan_sampah('tema', {'nama': tema.nama})
         db.session.delete(tema)
         db.session.commit()
+        catat_log("HAPUS TEMA", f"Menghapus kategori tema: {tema.nama}")
         app.logger.info(f"Tema dihapus: {tema.nama}")
     return redirect('/')
 
@@ -1113,6 +1175,7 @@ def tambah_buku():
         buku_baru = Buku(judul=judul, subjudul=subjudul, tema_id=int(tema_id), kutipan=kutipan)
         db.session.add(buku_baru)
         db.session.commit()
+        catat_log("TAMBAH BUKU", f"Menambahkan buku baru: {judul}")
         app.logger.info(f"Buku baru ditambahkan: {judul}")
     return redirect(f'/tema/{tema_id}')
 
@@ -1125,6 +1188,7 @@ def hapus_buku(buku_id, tema_id):
         masukkan_sampah('buku', {'judul': buku.judul, 'subjudul': buku.subjudul})
         db.session.delete(buku)
         db.session.commit()
+        catat_log("HAPUS BUKU", f"Menghapus buku: {buku.judul}")
         app.logger.info(f"Buku dihapus: {buku.judul}")
     return redirect(f'/tema/{tema_id}')
 
@@ -1148,6 +1212,7 @@ def tambah_catatan():
         catatan_baru = Catatan(buku_id=int(buku_id), bagian=bagian, judul_bab=judul_bab, isi=isi)
         db.session.add(catatan_baru)
         db.session.commit()
+        catat_log("TAMBAH BAB", f"Menambahkan bab '{judul_bab}' pada buku ID {buku_id}")
         app.logger.info(f"Bab baru berhasil ditambahkan ke buku ID {buku_id}: {judul_bab}")
     return redirect(f'/buku/{buku_id}')
 
@@ -1159,6 +1224,7 @@ def hapus_catatan(catatan_id, buku_id):
     if catatan:
         db.session.delete(catatan)
         db.session.commit()
+        catat_log("HAPUS BAB", f"Menghapus bab: {catatan.judul_bab}")
         app.logger.info(f"Catatan bab dihapus: {catatan.judul_bab}")
     return redirect(f'/buku/{buku_id}')
 
@@ -1210,6 +1276,13 @@ def tong_sampah():
     sampah_list = TongSampah.query.order_by(TongSampah.dihapus_pada.desc()).all()
     return render_template_string(HTML_TONG_SAMPAH, sampah_list=sampah_list)
 
+@app.route('/riwayat-log')
+def riwayat_log():
+    if not session.get('is_admin'):
+        return redirect('/login')
+    logs = LogAktivitas.query.order_by(LogAktivitas.id.desc()).limit(50).all()
+    return render_template_string(HTML_LOG, logs=logs)
+
 @app.route('/pulihkan/<int:item_id>')
 def pulihkan(item_id):
     if not session.get('is_admin'):
@@ -1224,6 +1297,7 @@ def pulihkan(item_id):
         db.session.add(EsaiPenulis(judul=data['judul'], kategori=data.get('kategori', 'Refleksi'), isi=data['isi']))
     db.session.delete(item)
     db.session.commit()
+    catat_log("PULIHKAN DATA", f"Memulihkan item dari tong sampah (tipe: {item.tipe})")
     app.logger.info(f"Item sampah dipulihkan (tipe: {item.tipe})")
     return redirect('/tong-sampah')
 
@@ -1234,6 +1308,7 @@ def hapus_permanen(item_id):
     item = TongSampah.query.get_or_404(item_id)
     db.session.delete(item)
     db.session.commit()
+    catat_log("HAPUS PERMANEN", f"Menghapus permanen item dari tong sampah ID {item_id}")
     app.logger.info("Item dihapus permanen dari tong sampah.")
     return redirect('/tong-sampah')
 
@@ -1243,6 +1318,7 @@ def kosongkan_tong_sampah():
         return "Akses Ditolak", 403
     TongSampah.query.delete()
     db.session.commit()
+    catat_log("KOSONGKAN SAMPAH", "Mengosongkan seluruh isi tong sampah")
     app.logger.info("Tong sampah dikosongkan.")
     return redirect('/tong-sampah')
 
@@ -1259,15 +1335,18 @@ def login():
         pwd = request.form.get('password')
         if user == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, pwd):
             session['is_admin'] = True
+            catat_log("LOGIN BERHASIL", f"Admin masuk dari IP: {ip_pengguna}")
             app.logger.info(f"Admin '{user}' berhasil login.")
             return redirect('/')
         else:
+            catat_log("LOGIN GAGAL", f"Gagal masuk dengan username: {user} dari IP: {ip_pengguna}")
             app.logger.warning(f"Gagal login untuk username: {user}")
             return render_template_string(HTML_LOGIN, error="Username atau Password salah!")
     return render_template_string(HTML_LOGIN, error=None)
 
 @app.route('/logout')
 def logout():
+    catat_log("LOGOUT", "Admin keluar dari sistem")
     app.logger.info("Admin melakukan logout.")
     session.pop('is_admin', None)
     return redirect('/')
@@ -1282,6 +1361,7 @@ def backup_db():
         "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()],
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
+    catat_log("BACKUP DATABASE", "Mengunduh file backup JSON")
     app.logger.info("Database berhasil di-backup.")
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
@@ -1305,6 +1385,7 @@ def restore_db():
             if not EsaiPenulis.query.get(e['id']):
                 db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
         db.session.commit()
+        catat_log("RESTORE DATABASE", "Melakukan restore data dari file JSON")
         app.logger.info("Database berhasil di-restore dari file JSON.")
     return redirect('/')
 
