@@ -4,3 +4,4 @@ reportlab
 requests
 Flask-WTF
 gunicorn
+sqlalchemy-libsql
