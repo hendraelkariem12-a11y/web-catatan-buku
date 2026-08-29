@@ -41,6 +41,14 @@ class Catatan(db.Model):
     isi = db.Column(db.Text, nullable=False)
     buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=False)
 
+# Tabel Tambahan Khusus Esai/Jurnal Catatan Penulis
+class EsaiPenulis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    judul = db.Column(db.String(200), nullable=False)
+    kategori = db.Column(db.String(100), default="Refleksi Harian") # Misal: Refleksi, Ide, Rekomendasi Buku
+    isi = db.Column(db.Text, nullable=False)
+    tanggal = db.Column(db.String(50), nullable=True)
+
 with app.app_context():
     db.create_all()
     if Tema.query.count() == 0:
@@ -85,7 +93,7 @@ HTML_INDEX = """
 <body>
 <div class="container py-5" style="max-width: 850px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="/penulis" class="btn btn-outline-dark rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-feather-pointed me-1"></i> Profil Penulis</a>
+        <a href="/penulis" class="btn btn-outline-dark rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
         <div>
             {% if is_admin %}
                 <a href="/backup" class="btn btn-outline-primary rounded-pill btn-sm me-2"><i class="fa-solid fa-download me-1"></i> Backup</a>
@@ -116,18 +124,19 @@ HTML_INDEX = """
     </div>
     {% endif %}
 
-    <h5 class="fw-bold mb-3" style="font-family: 'Cinzel', serif; color: #1e293b;">Pilih Tema / Kategori Karya:</h5>
+    <h5 class="fw-bold mb-3" style="font-family: 'Cinzel', serif; color: #1e293b;">Pilih Kategori Karya:</h5>
     <div class="row g-3">
+        <!-- Kartu Khusus Esai & Refleksi Penulis -->
         <div class="col-12">
-            <a href="/penulis" class="text-decoration-none">
+            <a href="/catatan-penulis" class="text-decoration-none">
                 <div class="card-gold card-penulis p-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
                             <div>
-                                <span class="badge bg-warning text-dark fw-bold mb-1">Karya Spesial</span>
-                                <h4 class="title-gold h5 mb-1">✍️ Catatan Penulis</h4>
-                                <p class="text-muted small mb-0">Rangkuman pemikiran mendalam & jurnal esensial penulis.</p>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">Ruang Refleksi</span>
+                                <h4 class="title-gold h5 mb-1">✍️ Jurnal & Esai Bebas Penulis</h4>
+                                <p class="text-muted small mb-0">Kumpulan perenungan harian, ide acak, & artikel bebas Dede Suhendra.</p>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
@@ -135,6 +144,7 @@ HTML_INDEX = """
                 </div>
             </a>
         </div>
+
         {% for tema in tema_list %}
         <div class="col-md-6">
             <div class="card-gold p-4">
@@ -165,7 +175,7 @@ HTML_PENULIS = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catatan Penulis - Dede Suhendra</title>
+    <title>Profil Penulis - Dede Suhendra</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
@@ -301,7 +311,7 @@ HTML_PENULIS = """
 
     <!-- 5. APRESIASI & UCAPAN TERIMA KASIH -->
     <div class="card-box">
-        <h2 class="card-title">🙏 Apresiasi & Penghargaan Serta Rasa Syukur</h2>
+        <h2 class="card-title">🙏 Apresiation & Penghargaan Serta Rasa Syukur</h2>
         <p class="card-p">Rasa syukur dan terima kasih yang mendalam saya persembahkan kepada orang-orang terkasih yang selalu menjadi sumber kekuatan, doa, dan inspirasi dalam hidup saya:</p>
 
         <div class="appreciation-grid">
@@ -331,9 +341,82 @@ HTML_PENULIS = """
             </div>
         </div>
     </div>
+</div>
+</body>
+</html>
+"""
 
+HTML_ESAI_PENULIS = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jurnal & Esai Bebas - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg: #0b132b; --card: #1c2541; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
+        body { background: var(--bg); color: var(--text); padding: 25px 15px; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .container { max-width: 760px; margin: 0 auto; }
+        .esai-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; position: relative; }
+        .markdown-body { line-height: 1.8; color: #cbd5e1; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="btn btn-outline-light btn-sm mb-4"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
+
+    <div class="bg-primary bg-opacity-10 border border-primary p-4 rounded-4 mb-4">
+        <span class="badge bg-warning text-dark mb-2 fw-bold">RUANG REFLEKSI HASIL PEMIKIRAN</span>
+        <h2 class="h3 fw-bold text-info mb-1">✍️ Jurnal & Esai Bebas Penulis</h2>
+        <p class="text-muted small mb-0">Catatan ide acak, artikel ringkas, dan hikmah harian karya Dede Suhendra.</p>
+    </div>
+
+    {% if is_admin %}
+    <div class="card bg-dark text-white border-secondary p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-info mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Jurnal / Esai Baru</h6>
+        <form action="/tambah-esai" method="POST">
+            <input type="text" name="judul" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Judul Esai / Catatan..." required>
+            <input type="text" name="kategori" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" placeholder="Kategori (Misal: Hikmah Harian, Rekomendasi Buku)...">
+            <textarea name="isi" class="form-control form-control-sm mb-2 bg-secondary text-white border-0" rows="4" placeholder="Tuliskan ide / esai bebas (Mendukung Markdown)..." required></textarea>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan Catatan</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% for e in esai_list %}
+    <div class="esai-card shadow-sm">
+        {% if is_admin %}
+        <form action="/hapus-esai/{{ e.id }}" method="POST" class="position-absolute top-0 end-0 p-3" onsubmit="return confirm('Hapus esai ini?');">
+            <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
+        </form>
+        {% endif %}
+
+        <span class="badge bg-info text-dark mb-2">{{ e.kategori }}</span>
+        <h4 class="text-info fw-bold mb-3">{{ e.judul }}</h4>
+        <div class="markdown-body" id="content-esai-{{ e.id }}"></div>
+        <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
+    </div>
+    {% else %}
+    <div class="text-center py-5 bg-dark bg-opacity-50 rounded-4 border border-secondary">
+        <i class="fa-solid fa-feather fs-1 text-muted mb-2"></i>
+        <p class="text-muted mb-0">Belum ada jurnal atau esai bebas yang diunggah.</p>
+    </div>
+    {% endfor %}
 </div>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        marked.use({ gfm: true, breaks: true });
+        {% for e in esai_list %}
+            var rawText = document.getElementById('raw-esai-{{ e.id }}').value;
+            document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(rawText);
+        {% endfor %}
+    });
+</script>
 </body>
 </html>
 """
@@ -546,6 +629,35 @@ def index():
 def tentang_penulis():
     return render_template_string(HTML_PENULIS)
 
+@app.route('/catatan-penulis')
+def catatan_penulis():
+    is_admin = session.get('is_admin')
+    esai_list = EsaiPenulis.query.order_by(EsaiPenulis.id.desc()).all()
+    return render_template_string(HTML_ESAI_PENULIS, esai_list=esai_list, is_admin=is_admin)
+
+@app.route('/tambah-esai', methods=['POST'])
+def tambah_esai():
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    judul = request.form.get('judul')
+    kategori = request.form.get('kategori', 'Refleksi Harian')
+    isi = request.form.get('isi')
+    if judul and isi:
+        e = EsaiPenulis(judul=judul, kategori=kategori, isi=isi)
+        db.session.add(e)
+        db.session.commit()
+    return redirect('/catatan-penulis')
+
+@app.route('/hapus-esai/<int:esai_id>', methods=['POST'])
+def hapus_esai(esai_id):
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    e = EsaiPenulis.query.get(esai_id)
+    if e:
+        db.session.delete(e)
+        db.session.commit()
+    return redirect('/catatan-penulis')
+
 @app.route('/tema/<int:tema_id>')
 def detail_tema(tema_id):
     is_admin = session.get('is_admin')
@@ -655,7 +767,8 @@ def backup_db():
     data = {
         "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
         "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
-        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()]
+        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()],
+        "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
