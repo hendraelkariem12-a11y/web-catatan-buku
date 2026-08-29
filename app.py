@@ -652,6 +652,7 @@ HTML_TEMA = """
                     </a>
                     <div class="d-flex align-items-center gap-2">
                         <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="Export Buku ke TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
+                        <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold" title="Download PDF Buku"><i class="fa-solid fa-file-pdf"></i></a>
                         {% if is_admin %}
                         <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -695,7 +696,10 @@ HTML_BUKU_DETAIL = """
 <div class="container py-5" style="max-width:850px;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="/tema/{{ buku.tema_id }}" class="btn btn-custom-outline rounded-pill btn-sm px-4 shadow-sm fw-bold"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Tema</a>
-        <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-arrow-down me-1"></i> Export Buku (TXT)</a>
+        <div class="d-flex gap-2">
+            <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-arrow-down me-1"></i> TXT</a>
+            <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> Download PDF Buku</a>
+        </div>
     </div>
     
     <div class="card-gold p-4 mb-4 rounded-4">
@@ -1256,6 +1260,56 @@ def export_buku(buku_id):
         mimetype='text/plain',
         headers={'Content-Disposition': f'attachment;filename={nama_file}'}
     )
+
+@app.route('/export-buku-pdf/<int:buku_id>')
+def export_buku_pdf(buku_id):
+    try:
+        buku = Buku.query.get_or_404(buku_id)
+        catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.id.asc()).all()
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle('BookTitle', parent=styles['Heading1'], fontSize=20, leading=24, textColor='#b38728', spaceAfter=6, alignment=1)
+        sub_style = ParagraphStyle('BookSub', parent=styles['Normal'], fontSize=11, leading=14, textColor='#64748b', spaceAfter=15, alignment=1)
+        chapter_title = ParagraphStyle('ChapTitle', parent=styles['Heading2'], fontSize=14, leading=18, textColor='#1e293b', spaceBefore=15, spaceAfter=8)
+        body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=10, leading=14, textColor='#334155', spaceAfter=10)
+        
+        story = [
+            Paragraph(f"<b>{escape(buku.judul).upper()}</b>", title_style),
+        ]
+        
+        if buku.subjudul:
+            story.append(Paragraph(escape(buku.subjudul), sub_style))
+        if buku.kutipan:
+            story.append(Paragraph(f"<i>&quot;{escape(buku.kutipan)}&quot;</i>", sub_style))
+            
+        story.append(Spacer(1, 15))
+        
+        for idx, c in enumerate(catatan_list, 1):
+            label_bab = f"Bab {idx}: {c.judul_bab}"
+            if c.bagian:
+                label_bab = f"[{c.bagian}] {c.judul_bab}"
+                
+            story.append(Paragraph(escape(label_bab), chapter_title))
+            
+            isi_bersih = escape(c.isi).replace('\n', '<br/>')
+            story.append(Paragraph(isi_bersih, body_style))
+            story.append(Spacer(1, 10))
+            
+        doc.build(story)
+        buffer.seek(0)
+        
+        nama_file_safe = re.sub(r'[^a-zA-Z0-9_]', '', buku.judul.replace(' ', '_'))
+        if not nama_file_safe:
+            nama_file_safe = f"buku_{buku.id}"
+            
+        catat_log("EXPORT BUKU PDF", f"Mencetak buku '{buku.judul}' ke format PDF")
+        return send_file(buffer, as_attachment=True, download_name=f"{nama_file_safe}.pdf", mimetype='application/pdf')
+    except Exception as e:
+        app.logger.error(f"Gagal mencetak PDF Buku ID {buku_id}: {str(e)}")
+        return f"<div style='padding:20px; font-family:sans-serif;'><h3>⚠️ Gagal Membuat PDF Buku</h3><p>Error: {str(e)}</p><a href='/'>Kembali</a></div>", 500
 
 @app.route('/statistik')
 def statistik():
