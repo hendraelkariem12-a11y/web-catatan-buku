@@ -16,19 +16,10 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI DATABASE (TURSO CLOUD + FALLBACK LOKAL)
+# KONFIGURASI DATABASE AMAN VERCEL SERVERLESS
 # ==================================================
-db_url = os.environ.get('DATABASE_URL', '')
-db_token = os.environ.get('DATABASE_TOKEN', '')
-
-if db_url and db_token:
-    # Menggunakan koneksi SQLite over HTTP yang kompatibel dengan Vercel Serverless
-    url_clean = db_url.replace('libsql://', '').replace('https://', '')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:////tmp/karya_buku.db"
-else:
-    db_path = os.path.join('/tmp', 'karya_buku.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-
+db_path = os.path.join('/tmp', 'karya_buku.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
@@ -205,7 +196,8 @@ HTML_INDEX = """
 <div class="container py-5" style="max-width:850px;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="/penulis" class="btn btn-custom-outline rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a href="/baca-pdf?judul=Demo+Naskah+Modul+Buku" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-book-open me-1 text-danger"></i> PDF Reader</a>
             <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
             <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
             {% if is_admin %}
@@ -326,6 +318,59 @@ function filterKategori(nama) {
     });
 }
 </script>
+</body>
+</html>
+"""
+
+HTML_PDF_VIEWER = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembaca PDF Inline - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """
+        .pdf-frame-wrapper {
+            position: relative;
+            width: 100%;
+            height: 78vh;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-4" style="max-width:920px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Utama</a>
+    
+    <div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-row flex-wrap gap-2">
+        <div>
+            <span class="badge bg-warning text-dark fw-bold mb-1"><i class="fa-solid fa-book-open me-1"></i> E-Book Inline Reader</span>
+            <h4 class="h5 fw-bold mb-0 text-warning">{{ judul_pdf }}</h4>
+        </div>
+        <a href="{{ url_pdf }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold">
+            <i class="fa-solid fa-download me-1"></i> Unduh File PDF
+        </a>
+    </div>
+
+    <!-- PDF Viewer Inline via Mozilla PDF.js Embed Engine -->
+    <div class="pdf-frame-wrapper card-gold">
+        <iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe>
+    </div>
+</div>
 </body>
 </html>
 """
@@ -713,6 +758,13 @@ def index():
     jumlah_esai = EsaiPenulis.query.count()
     return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai)
 
+@app.route('/baca-pdf')
+def baca_pdf():
+    # Mengambil parameter URL file PDF atau menggunakan file PDF contoh buatan Mozilla
+    url_pdf = request.args.get('url', 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf')
+    judul_pdf = request.args.get('judul', 'Demo Naskah E-Book Digital')
+    return render_template_string(HTML_PDF_VIEWER, url_pdf=url_pdf, judul_pdf=judul_pdf)
+
 @app.route('/penulis')
 def tentang_penulis():
     return render_template_string(HTML_PENULIS)
@@ -961,19 +1013,15 @@ def restore_db():
     file = request.files.get('file_json')
     if file:
         data = json.load(file)
-        # Restore Tema
         for t in data.get('tema', []):
             if not Tema.query.get(t['id']):
                 db.session.add(Tema(id=t['id'], nama=t['nama']))
-        # Restore Buku
         for b in data.get('buku', []):
             if not Buku.query.get(b['id']):
                 db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
-        # Restore Catatan
         for c in data.get('catatan', []):
             if not Catatan.query.get(c['id']):
                 db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
-        # Restore Esai
         for e in data.get('esai', []):
             if not EsaiPenulis.query.get(e['id']):
                 db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
