@@ -1,17 +1,33 @@
 import os
 import json
+from io import BytesIO
 from datetime import datetime
-from flask import Flask, request, redirect, render_template_string, session, Response, send_from_directory
+from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+
+# ReportLab untuk Fitur Cetak PDF Dinamis
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI DATABASE
+# KONFIGURASI DATABASE (TURSO CLOUD + FALLBACK LOKAL)
 # ==================================================
-db_path = os.path.join('/tmp', 'karya_buku.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+db_url = os.environ.get('DATABASE_URL', '')
+db_token = os.environ.get('DATABASE_TOKEN', '')
+
+if db_url.startswith('libsql://'):
+    # Menggunakan Database Turso Cloud Permanen jika di Vercel
+    url_clean = db_url.replace('libsql://', '')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+libsql://{url_clean}?authToken={db_token}"
+else:
+    # Fallback ke SQLite lokal sementara
+    db_path = os.path.join('/tmp', 'karya_buku.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
@@ -68,11 +84,6 @@ class TongSampah(db.Model):
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
-class PengaturanPengguna(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    mode_tema = db.Column(db.String(20), default='terang')
-    ukuran_font = db.Column(db.String(20), default='normal')
-
 with app.app_context():
     db.create_all()
     if Tema.query.count() == 0:
@@ -93,7 +104,7 @@ def masukkan_sampah(tipe, data_dict):
     db.session.commit()
 
 # ==================================================
-# CSS & JAVASCRIPT SHARED (KONTRASTIS 100%)
+# CSS & JAVASCRIPT SHARED
 # ==================================================
 
 CSS_SHARED = """
@@ -122,26 +133,18 @@ CSS_SHARED = """
         color: var(--text-main) !important; 
         transition: background-color 0.2s ease, color 0.2s ease;
     }
-    h1, h2, h3, h4, h5, h6, p, div, label, span, small {
-        color: inherit !important;
-    }
-    .text-muted {
-        color: var(--text-muted) !important;
-    }
+    h1, h2, h3, h4, h5, h6, p, div, label, span, small { color: inherit !important; }
+    .text-muted { color: var(--text-muted) !important; }
     .header-title { font-family: 'Cinzel', serif; font-weight: 700; color: var(--text-main) !important; }
     .top-badge { background: #fcf8ec; color: #b38728 !important; border: 1px solid rgba(212,175,55,0.4); font-weight:700; padding:6px 16px; border-radius:30px; font-size:0.8rem; }
-    
     .card-gold { background:var(--card-paper) !important; border-radius:18px; border:1px solid var(--border-color) !important; box-shadow:0 10px 25px rgba(0,0,0,0.03); transition:all 0.3s ease; position:relative; overflow:hidden; }
     .card-gold::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:var(--gold-gradient); }
     .card-gold:hover { transform:translateY(-4px); box-shadow:0 15px 30px rgba(212,175,55,0.18); }
-    
     .btn-custom-outline { color: var(--text-main) !important; border-color: var(--border-color) !important; background: var(--card-paper) !important; }
     .btn-custom-outline:hover { background: #b38728 !important; color: #fff !important; }
-    
     .search-box { position:relative; }
     .search-box input { padding-left:38px; background: var(--input-bg) !important; color: var(--input-text) !important; border-color: var(--border-color) !important; }
     .search-box i { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; }
-    
     .badge-count { background:#b38728; color:white !important; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
     .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper) !important; border: 2px solid #b38728 !important; color: #b38728 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .filter-tag { cursor:pointer; transition:all 0.2s; background: var(--card-paper) !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
@@ -177,7 +180,7 @@ JS_THEME_SCRIPT = """
 """
 
 # ==================================================
-# TEMPLATE HTML UTAMA
+# TEMPLATE HTML
 # ==================================================
 
 HTML_INDEX = """
@@ -353,7 +356,10 @@ HTML_ESAI_PENULIS = """
             <button type="submit" class="btn btn-link text-danger p-0"><i class="fa-solid fa-trash"></i></button>
         </form>
         {% endif %}
-        <span class="badge bg-info text-dark mb-2">{{ e.kategori }}</span>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-info text-dark">{{ e.kategori }}</span>
+            <a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> Cetak PDF</a>
+        </div>
         <h4 class="text-warning fw-bold mb-3 esai-judul">{{ e.judul }}</h4>
         <div class="markdown-body" id="content-esai-{{ e.id }}"></div>
         <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
@@ -691,6 +697,29 @@ def catatan_penulis():
     is_admin = session.get('is_admin')
     esai_list = EsaiPenulis.query.order_by(EsaiPenulis.id.desc()).all()
     return render_template_string(HTML_ESAI_PENULIS, esai_list=esai_list, is_admin=is_admin)
+
+@app.route('/cetak-esai-pdf/<int:esai_id>')
+def cetak_esai_pdf(esai_id):
+    esai = EsaiPenulis.query.get_or_404(esai_id)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, leading=22, textColor='#b38728', spaceAfter=10)
+    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor='#64748b', spaceAfter=15)
+    body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=11, leading=16, textColor='#1e293b')
+    
+    story = [
+        Paragraph(f"<b>{esai.judul}</b>", title_style),
+        Paragraph(f"Kategori: {esai.kategori} | Penulis: Dede Suhendra", meta_style),
+        Spacer(1, 10),
+        Paragraph(esai.isi.replace('\n', '<br/>'), body_style)
+    ]
+    
+    doc.build(story)
+    buffer.seek(0)
+    filename = f"{esai.judul.replace(' ', '_')}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 @app.route('/tambah-esai', methods=['POST'])
 def tambah_esai():
