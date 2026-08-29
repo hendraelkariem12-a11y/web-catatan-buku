@@ -8,6 +8,8 @@ from datetime import datetime
 from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # ReportLab untuk Fitur Cetak PDF Dinamis
@@ -19,9 +21,15 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI CSRF PROTECTION
+# KONFIGURASI KEAMANAN (CSRF & RATE LIMITER)
 # ==================================================
 csrf = CSRFProtect(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # ==================================================
 # KONFIGURASI LOGGING SISTEM
@@ -242,7 +250,7 @@ JS_THEME_SCRIPT = """
 """
 
 # ==================================================
-# TEMPLATE HTML (DENGAN CSRF TOKEN PADA SETIAP FORM)
+# TEMPLATE HTML (DENGAN CSRF TOKEN)
 # ==================================================
 
 HTML_INDEX = """
@@ -1234,6 +1242,7 @@ def kosongkan_tong_sampah():
     return redirect('/tong-sampah')
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == 'POST':
         user = request.form.get('username')
