@@ -1,0 +1,35 @@
+{
+  "tema": [
+    {
+      "id": 1,
+      "nama": "Filsafat"
+    },
+    {
+      "id": 2,
+      "nama": "Keuangan"
+    },
+    {
+      "id": 3,
+      "nama": "Komunikasi"
+    }
+  ],
+  "buku": [
+    {
+      "id": 1,
+      "judul": "Sistem Operasi Benteng Batin",
+      "subjudul": "Melatih Mental Tangguh, Mencintai Takdir, dan Menguasai Ketenangan dalam 12 Minggu",
+      "tema_id": 1,
+      "kutipan": "Ketenangan bukanlah ketiadaan masalah, melainkan kemampuan menguasai diri di tengah badai."
+    }
+  ],
+  "catatan": [
+    {
+      "id": 1,
+      "bagian": "BAGIAN I : Mengapa Kita Takut Mati? (The Awakening)",
+      "judul_bab": "Tabu yang Disembunyikan",
+      "isi": "Manusia modern hidup di tengah sebuah paradoks yang menarik. Kita semua mengetahui bahwa kematian adalah sesuatu yang pasti...",
+      "buku_id": 1
+    }
+  ],
+  "esai": []
+}
