@@ -51,15 +51,12 @@ os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 # KONFIGURASI DATABASE TURSO CLOUD / LOCAL FALLBACK
 # ==================================================
 TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
-TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
 TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
 
 if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
-    db_url = TURSO_DATABASE_URL.strip()
-    if not db_url.startswith("libsql://"):
-        db_url = f"libsql://{db_url}"
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"{db_url}?authToken={TURSO_AUTH_TOKEN}"
-    database_info = "Turso Cloud Database"
+    db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'karya_buku.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    database_info = "SQLite Railway (Stabil)"
 else:
     db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'karya_buku.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
