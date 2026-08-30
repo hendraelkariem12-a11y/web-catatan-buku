@@ -901,8 +901,32 @@ def backup_db():
 
 @app.route('/restore', methods=['POST'])
 def restore_db():
-    if not session.get('is_admin'): return "Akses Ditolak", 403
+    if not session.get('is_admin'):
+        return "Akses Ditolak", 403
+    file = request.files.get('file_json')
+    if file:
+        try:
+            data = json.load(file)
+            for t in data.get('tema', []):
+                if not Tema.query.get(t['id']):
+                    db.session.add(Tema(id=t['id'], nama=t['nama']))
+            for b in data.get('buku', []):
+                if not Buku.query.get(b['id']):
+                    db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+            for c in data.get('catatan', []):
+                if not Catatan.query.get(c['id']):
+                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
+            for e in data.get('esai', []):
+                if not EsaiPenulis.query.get(e['id']):
+                    db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+            db.session.commit()
+            catat_log("RESTORE DATABASE", "Melakukan restore data dari file JSON")
+            app.logger.info("Database berhasil di-restore dari file JSON.")
+        except Exception as err:
+            db.session.rollback()
+            app.logger.error(f"Gagal restore database: {str(err)}")
     return redirect('/')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
