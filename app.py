@@ -219,7 +219,7 @@ def kesalahan_server(e):
     """, 500
 
 # ==================================================
-# CSS & JAVASCRIPT SHARED
+# CSS & JAVASCRIPT SHARED (SELARAS TEMA EMAS DASHBOARD)
 # ==================================================
 
 CSS_SHARED = """
@@ -261,7 +261,6 @@ CSS_SHARED = """
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 90px; }
     
-    /* STYLING DAFTAR ISI BERTINGKAT YANG RAPI */
     .toc-box { background: rgba(179, 135, 40, 0.05); border: 1px dashed var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
     .toc-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #b38728; letter-spacing: 0.5px; margin-top: 14px; margin-bottom: 6px; border-bottom: 1px solid rgba(179, 135, 40, 0.2); padding-bottom: 3px; }
     .toc-section-title:first-child { margin-top: 0; }
@@ -709,7 +708,7 @@ document.addEventListener("DOMContentLoaded", function(){
 </html>
 """
 
-# Template halaman lainnya
+# Template halaman lainnya (Profil Penulis disesuaikan selaras tema emas dashboard)
 HTML_FAVORIT = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Favorit</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-star me-2"></i> Koleksi Favorit</h4><div class="d-flex flex-column gap-3">{% for c in catatan_favorit %}<div class="card-gold p-4"><div class="d-flex justify-content-between align-items-center mb-2"><span class="badge bg-warning text-dark">Buku ID: {{ c.buku_id }}</span><a href="/buku/{{ c.buku_id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Buku &rarr;</a></div><h5 class="fw-bold mb-2">{{ c.judul_bab }}</h5><p class="small text-muted mb-0">{{ c.isi[:140] }}...</p></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted mb-0">Belum ada bab favorit.</p></div>{% endfor %}</div></div></body></html>"""
 HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
 HTML_ESAI_PENULIS = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Esai</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:760px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><div class="card-gold p-4 rounded-4 mb-4"><h2 class="h3 fw-bold text-warning mb-1">✍️ Jurnal & Esai Bebas</h2></div>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/tambah-esai" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul..." required><input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori..."><textarea name="isi" class="form-control form-control-sm mb-2" rows="4" placeholder="Isi..." required></textarea><button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan</button></form></div>{% endif %}{% for e in esai_list %}<div class="card-gold p-4 mb-3"><div class="d-flex justify-content-between mb-2"><span class="badge bg-info text-dark">{{ e.kategori }}</span><a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i> PDF</a></div><h4 class="text-warning fw-bold mb-3">{{ e.judul }}</h4><div class="markdown-body" id="content-esai-{{ e.id }}"></div><textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea></div>{% endfor %}</div><script>document.addEventListener("DOMContentLoaded", function(){marked.use({ gfm: true, breaks: true });{% for e in esai_list %}document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(document.getElementById('raw-esai-{{ e.id }}').value);{% endfor %});</script></body></html>"""
@@ -757,9 +756,7 @@ HTML_TEMA = """
                     <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
                     <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
                     {% if is_admin %}
-                    <!-- TOMBOL PINDAH TEMA -->
                     <button type="button" class="btn btn-outline-info btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#pindahTemaModal{{ buku.id }}" title="Pindah Tema"><i class="fa-solid fa-folder-tree"></i></button>
-                    <!-- TOMBOL HAPUS BUKU -->
                     <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini beserta seluruh isinya?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="Hapus Buku"><i class="fa-solid fa-trash"></i></button>
@@ -769,7 +766,6 @@ HTML_TEMA = """
             </div>
         </div>
 
-        <!-- Modal Pindah Tema -->
         {% if is_admin %}
         <div class="modal fade" id="pindahTemaModal{{ buku.id }}" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog">
@@ -805,10 +801,93 @@ HTML_TEMA = """
 </html>
 """
 
+HTML_PENULIS = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Penulis - Dede Suhendra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-5" style="max-width:760px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Kembali ke Utama</a>
+    
+    <div class="card-gold p-4 mb-4 rounded-4" style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" style="width:140px; height:140px; border-radius:50%; object-fit:cover; border:3px solid #b38728; margin:0 auto; display:block;">
+        <div style="flex:1; min-width:250px;">
+            <h2 class="h4 fw-bold text-warning mb-2" style="font-family:'Cinzel',serif;">👨‍💻 Profil Penulis</h2>
+            <p class="small mb-2">Selamat datang di ruang pustaka pribadi karya dan catatan saya. Nama saya <strong>Dede Suhendra</strong>, lahir 8 Juli 2001, dari Subang.</p>
+            <p class="small text-muted mb-0">Dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun terstruktur.</p>
+        </div>
+    </div>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h4 class="h5 fw-bold text-warning mb-3">✍️ Perjuangan & Latar Belakang Penulisan</h4>
+        <p class="small mb-2">Setiap tulisan lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian, setiap sisa waktu luang dimanfaatkan untuk tetap konsisten menulis dan mendokumentasikan ilmu.</p>
+        <p class="small text-muted mb-0">Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana merefleksikan pembelajaran hidup agar bermanfaat secara luas dan berkelanjutan.</p>
+    </div>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h4 class="h5 fw-bold text-warning mb-3">📜 Riwayat Pendidikan & Pengalaman</h4>
+        <h6 class="fw-bold text-warning small mb-2">🎓 Pendidikan:</h6>
+        <div style="border-left:2px solid var(--border-color); padding-left:15px; margin-bottom:15px;" class="small">
+            <div class="mb-2"><strong>2013:</strong> SDN Sindang Laut II (Lulus SD)</div>
+            <div class="mb-2"><strong>2013–2015:</strong> Ponpes Madinatul Musthofa</div>
+            <div class="mb-2"><strong>2015–2016:</strong> Pondok Tahfidz Qur'an (Fokus Hafalan)</div>
+            <div class="mb-2"><strong>2016–2019:</strong> Ponpes Madinatul Musthofa</div>
+            <div class="mb-2"><strong>2019–2022:</strong> Pondok Modern Darussalam Gontor (KMI)</div>
+            <div class="mb-2"><strong>2022–2023:</strong> Pengabdian Gontor & UNIDA Gontor</div>
+            <div><strong>2023–2025:</strong> Pengajar Ponpes & STISQ AL-IHYA Subang</div>
+        </div>
+        <h6 class="fw-bold text-warning small mb-2">💼 Pengalaman Kerja & Khidmat:</h6>
+        <div style="border-left:2px solid var(--border-color); padding-left:15px;" class="small">
+            <div class="mb-2"><strong>2025:</strong> Gudang Shopee Tangerang (Logistik)</div>
+            <div class="mb-2"><strong>2025:</strong> Karyawan Fotokopi Jakarta Pusat</div>
+            <div class="mb-2"><strong>2025:</strong> Barista & Chef Bogor</div>
+            <div><strong>Sekarang:</strong> Imam, Muadzin & Pengajar Al-Qur'an Tangerang</div>
+        </div>
+    </div>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h4 class="h5 fw-bold text-warning mb-3">🎯 Visi & Misi Penulisan</h4>
+        <p class="small mb-2"><strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri berkelanjutan, dan ladang manfaat terstruktur.</p>
+        <p class="small fw-bold mb-1">Misi:</p>
+        <ul class="small text-muted ps-3 mb-0">
+            <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
+            <li>Mendokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
+            <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
+        </ul>
+    </div>
+    
+    <div class="card-gold p-4 rounded-4">
+        <h4 class="h5 fw-bold text-warning mb-3">🙏 Apresiasi & Rasa Syukur</h4>
+        <p class="small text-muted mb-3">Rasa syukur dan terima kasih kepada orang-orang terkasih yang menjadi sumber kekuatan, doa, dan inspirasi:</p>
+        <div class="row g-3">
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👨‍👦 Bapak Khairudin</strong><p class="small text-muted mb-0 mt-1">Doa, kerja keras, dan bimbingan tanpa henti.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">💐 Ibu Sumini (Almarhumah)</strong><p class="small text-muted mb-0 mt-1">Semoga Allah mengampuni dan menempatkan di tempat terbaik.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👫 Siti Aisyah & Muhammad Naimul Ilmi</strong><p class="small text-muted mb-0 mt-1">Adik-adik tersayang, kebanggaan dan penyemangat.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👦 Muhammad Aji</strong><p class="small text-muted mb-0 mt-1">Kakak tercinta atas kebersamaan dan dukungan.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">❤️ Sri Nur Safitri</strong><p class="small text-muted mb-0 mt-1">Perhatian, dorongan semangat, dan pendamping setia.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">🤝 Sahabat & Kolega</strong><p class="small text-muted mb-0 mt-1">Semua yang telah mendukung dan mendoakan.</p></div></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+"""
+
 HTML_STATISTIK = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Statistik</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.stat-number{font-size:42px;font-weight:800;color:#b38728;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:600px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h3 class="mb-4 text-center fw-bold">📊 Statistik</h3><div class="row g-3"><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Buku</div></div></div><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Bab</div></div></div></div></div></body></html>"""
 HTML_TONG_SAMPAH = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Tong Sampah</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:700px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>{% for item in sampah_list %}<div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center"><div><span class="badge bg-secondary me-2">{{ item.tipe }}</span><span>{{ item.data_json }}</span></div><div class="d-flex gap-2"><a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i></a><a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash-xmark"></i></a></div></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted">Kosong.</p></div>{% endfor %}</div></body></html>"""
-HTML_LOG = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Log</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning">Riwayat Log</h4><div class="d-flex flex-column gap-2">{% for l in logs %}<div class="card-gold p-3"><span class="badge bg-warning text-dark fw-bold mb-1">{{ l.aksi }}</span><p class="mb-0 small">{{ l.keterangan }}</p></div>{% endfor %}</div></div></body></html>"""
-HTML_PENULIS = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Profil</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet"><style>:root{--bg:#0b132b;--card:#1c2541;--accent:#38bdf8;--text:#f8fafc;--muted:#94a3b8;--border:#334155;}body{background:var(--bg);color:var(--text);padding:20px;font-family:'Plus Jakarta Sans',sans-serif;}.container{max-width:760px;margin:0 auto;}.card-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:24px;}</style></head><body><div class="container"><a href="/" style="color:var(--muted);text-decoration:none;font-weight:600;display:inline-block;margin-bottom:20px;">&larr; Kembali</a><div class="card-box text-center"><h2>Dede Suhendra</h2><p style="color:var(--muted);">Penulis & Pengembang Pustaka Digital</p></div></div></body></html>"""
+HTML_LOG = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Log</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="mb-4 fw-bold text-warning">Riwayat Log</h4><div class="d-flex flex-column gap-2">{% for l in logs %}<div class="card-gold p-3"><span class="badge bg-warning text-dark fw-bold mb-1">{{ l.aksi }}</span><p class="mb-0 small">{{ l.keterangan }}</p></div>{% endfor %}</div></div></body></html>"""
 HTML_LOGIN = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Login</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{background:#0f172a;color:#f8fafc;display:flex;justify-content:center;align-items:center;min-height:100vh;}.login-card{background:#1e293b;border:1px solid #334155;padding:30px;border-radius:12px;width:100%;max-width:400px;}</style></head><body><div class="login-card shadow-lg"><h3 class="text-info text-center fw-bold mb-3">🔑 Login Admin</h3>{% if error %}<div class="alert alert-danger py-2 small text-center">{{ error }}</div>{% endif %}<form action="/login" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="username" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Username" required><input type="password" name="password" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Password" required><button type="submit" class="btn btn-info w-100 fw-bold">Masuk</button></form><div class="text-center mt-3"><a href="/" class="text-muted text-decoration-none small">&larr; Kembali</a></div></div></body></html>"""
 
 # ==================================================
