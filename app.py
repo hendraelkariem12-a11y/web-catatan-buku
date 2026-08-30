@@ -141,6 +141,30 @@ with app.app_context():
             Tema(nama='Komunikasi')
         ])
         db.session.commit()
+    
+    # Auto-Restore otomatis jika file backup_karya.json tersedia dan database kosong
+    if Buku.query.count() == 0 and os.path.exists('backup_karya.json'):
+        try:
+            with open('backup_karya.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for t in data.get('tema', []):
+                    if not Tema.query.get(t['id']):
+                        db.session.add(Tema(id=t['id'], nama=t['nama']))
+                for b in data.get('buku', []):
+                    if not Buku.query.get(b['id']):
+                        db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+                for c in data.get('catatan', []):
+                    if not Catatan.query.get(c['id']):
+                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
+                for e in data.get('esai', []):
+                    if not EsaiPenulis.query.get(e['id']):
+                        db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+                db.session.commit()
+                app.logger.info("Auto-restore database dari file backup_karya.json berhasil dilakukan.")
+        except Exception as err:
+            db.session.rollback()
+            app.logger.error(f"Gagal melakukan auto-restore: {str(err)}")
+
     app.logger.info(f"Database berhasil diinisialisasi menggunakan: {database_info}")
 
 @app.route('/profile.jpg')
@@ -1024,8 +1048,13 @@ def logout():
 @app.route('/backup')
 def backup_db():
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    data = {"buku": [{"judul": b.judul} for b in Buku.query.all()]}
-    return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup.json'})
+    data = {
+        "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
+        "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
+        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()],
+        "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
+    }
+    return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
 @app.route('/restore', methods=['POST'])
 def restore_db():
