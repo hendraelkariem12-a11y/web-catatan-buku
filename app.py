@@ -195,7 +195,7 @@ def kesalahan_server(e):
     """, 500
 
 # ==================================================
-# CSS & JAVASCRIPT SHARED (DENGAN TOMBOL SCROLL KE ATAS)
+# CSS & JAVASCRIPT SHARED
 # ==================================================
 
 CSS_SHARED = """
@@ -224,7 +224,6 @@ CSS_SHARED = """
     .badge-count { background:#b38728; color:white !important; border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; margin-left:6px; }
     .btn-mode-toggle { position:fixed; top:15px; right:15px; z-index:100; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background: var(--card-paper) !important; border: 2px solid #b38728 !important; color: #b38728 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     
-    /* TOMBOL KEMBALI KE ATAS (FLOATING ARROW) */
     .btn-to-top {
         position: fixed; bottom: 25px; right: 25px; z-index: 99;
         background: #b38728; color: white; border: none; border-radius: 50%;
@@ -238,11 +237,13 @@ CSS_SHARED = """
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 90px; }
     
-    /* DAFTAR ISI STYLING */
-    .toc-box { background: rgba(179, 135, 40, 0.05); border: 1px dashed var(--border-color); border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; }
-    .toc-list { list-style-type: none; padding-left: 0; margin-bottom: 0; }
-    .toc-list li { margin-bottom: 6px; font-size: 14px; }
-    .toc-list a { color: var(--text-main); text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    /* STYLING DAFTAR ISI BERTINGKAT YANG RAPI */
+    .toc-box { background: rgba(179, 135, 40, 0.05); border: 1px dashed var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
+    .toc-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #b38728; letter-spacing: 0.5px; margin-top: 14px; margin-bottom: 6px; border-bottom: 1px solid rgba(179, 135, 40, 0.2); padding-bottom: 3px; }
+    .toc-section-title:first-child { margin-top: 0; }
+    .toc-list { list-style-type: none; padding-left: 0; margin-bottom: 10px; }
+    .toc-list li { margin-bottom: 5px; font-size: 13.5px; padding-left: 12px; }
+    .toc-list a { color: var(--text-main); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .toc-list a:hover { color: #b38728; text-decoration: underline; }
 """
 
@@ -510,20 +511,31 @@ HTML_BUKU_DETAIL = """
         {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0">"{{ buku.kutipan }}"</blockquote>{% endif %}
     </div>
 
-    <!-- 📚 DAFTAR ISI INTERAKTIF (TABLE OF CONTENTS) -->
+    <!-- 📚 DAFTAR ISI TERSTRUKTUR & RAPI -->
     {% if catatan_list %}
     <div class="toc-box">
-        <h6 class="fw-bold mb-2 text-warning"><i class="fa-solid fa-list me-2"></i> Daftar Isi Buku</h6>
-        <ul class="toc-list">
-            {% for cat in catatan_list %}
-            <li>
-                <a href="#bab-{{ cat.id }}">
-                    <i class="fa-solid fa-bookmark text-warning small"></i> 
-                    {% if cat.bagian %}<span>[{{ cat.bagian }}]</span>{% endif %} {{ cat.judul_bab }}
-                </a>
-            </li>
-            {% endfor %}
-        </ul>
+        <h6 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-list me-2"></i> Daftar Isi Buku</h6>
+        {% set grouped = {} %}
+        {% for cat in catatan_list %}
+            {% set bagian_key = cat.bagian if cat.bagian else 'Bagian Utama' %}
+            {% if bagian_key not in grouped %}
+                {% set _ = grouped.update({bagian_key: []}) %}
+            {% endif %}
+            {% set _ = grouped[bagian_key].append(cat) %}
+        {% endfor %}
+
+        {% for bagian, cats in grouped.items() %}
+            <div class="toc-section-title"><i class="fa-solid fa-bookmark me-1 text-warning"></i> {{ bagian }}</div>
+            <ul class="toc-list">
+                {% for c in cats %}
+                <li>
+                    <a href="#bab-{{ c.id }}">
+                        <i class="fa-solid fa-angle-right text-muted small"></i> {{ c.judul_bab }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
     </div>
     {% endif %}
 
@@ -673,11 +685,102 @@ document.addEventListener("DOMContentLoaded", function(){
 </html>
 """
 
-# Template halaman lainnya tetap lengkap seperti sebelumnya...
+# Template halaman lainnya
 HTML_FAVORIT = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Favorit</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-star me-2"></i> Koleksi Favorit</h4><div class="d-flex flex-column gap-3">{% for c in catatan_favorit %}<div class="card-gold p-4"><div class="d-flex justify-content-between align-items-center mb-2"><span class="badge bg-warning text-dark">Buku ID: {{ c.buku_id }}</span><a href="/buku/{{ c.buku_id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Buku &rarr;</a></div><h5 class="fw-bold mb-2">{{ c.judul_bab }}</h5><p class="small text-muted mb-0">{{ c.isi[:140] }}...</p></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted mb-0">Belum ada bab favorit.</p></div>{% endfor %}</div></div></body></html>"""
 HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
 HTML_ESAI_PENULIS = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Esai</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:760px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><div class="card-gold p-4 rounded-4 mb-4"><h2 class="h3 fw-bold text-warning mb-1">✍️ Jurnal & Esai Bebas</h2></div>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/tambah-esai" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul..." required><input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori..."><textarea name="isi" class="form-control form-control-sm mb-2" rows="4" placeholder="Isi..." required></textarea><button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan</button></form></div>{% endif %}{% for e in esai_list %}<div class="card-gold p-4 mb-3"><div class="d-flex justify-content-between mb-2"><span class="badge bg-info text-dark">{{ e.kategori }}</span><a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i> PDF</a></div><h4 class="text-warning fw-bold mb-3">{{ e.judul }}</h4><div class="markdown-body" id="content-esai-{{ e.id }}"></div><textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea></div>{% endfor %}</div><script>document.addEventListener("DOMContentLoaded", function(){marked.use({ gfm: true, breaks: true });{% for e in esai_list %}document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(document.getElementById('raw-esai-{{ e.id }}').value);{% endfor %});</script></body></html>"""
-HTML_TEMA = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Tema</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-5" style="max-width:850px;"><a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali</a><div class="card-gold p-4 mb-4 rounded-4"><h2 class="h3 fw-bold mb-1">Tema: {{ tema.nama }}</h2></div>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/tambah-buku" method="POST" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tema_id" value="{{ tema.id }}"><div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div><div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul"></div><div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan..."></textarea></div><div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div></form></div>{% endif %}<div class="row g-3">{% for buku in buku_list %}<div class="col-12"><div class="card-gold p-4 d-flex justify-content-between align-items-center"><a href="/buku/{{ buku.id }}" class="text-decoration-none flex-grow-1"><h4 class="h5 mb-1 fw-bold text-warning">{{ buku.judul.upper() }}</h4>{% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}</a><div class="d-flex gap-2"><a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-arrow-down"></i></a><a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i></a></div></div></div>{% endfor %}</div></div></body></html>"""
+
+HTML_TEMA = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tema: {{ tema.nama }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali</a>
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h2 class="h3 fw-bold mb-1">Tema: {{ tema.nama }}</h2>
+    </div>
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <form action="/tambah-buku" method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="tema_id" value="{{ tema.id }}">
+            <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
+            <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul"></div>
+            <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan..."></textarea></div>
+            <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
+        </form>
+    </div>
+    {% endif %}
+    <div class="row g-3">
+        {% for buku in buku_list %}
+        <div class="col-12">
+            <div class="card-gold p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <a href="/buku/{{ buku.id }}" class="text-decoration-none flex-grow-1">
+                    <h4 class="h5 mb-1 fw-bold text-warning">{{ buku.judul.upper() }}</h4>
+                    {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
+                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
+                    <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                    {% if is_admin %}
+                    <!-- TOMBOL PINDAH TEMA -->
+                    <button type="button" class="btn btn-outline-info btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#pindahTemaModal{{ buku.id }}" title="Pindah Tema"><i class="fa-solid fa-folder-tree"></i></button>
+                    <!-- TOMBOL HAPUS BUKU -->
+                    <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini beserta seluruh isinya?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="Hapus Buku"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Pindah Tema -->
+        {% if is_admin %}
+        <div class="modal fade" id="pindahTemaModal{{ buku.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white border-secondary">
+              <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">📂 Pindah Buku ke Tema Lain</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <form action="/pindah-tema-buku/{{ buku.id }}" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="modal-body">
+                    <p class="small text-muted">Pilih tema tujuan untuk buku: <strong>{{ buku.judul }}</strong></p>
+                    <select name="tema_baru_id" class="form-select bg-secondary text-white border-secondary" required>
+                        {% for t_all in semua_tema %}
+                        <option value="{{ t_all.id }}" {% if t_all.id == tema.id %}selected{% endif %}>{{ t_all.nama }}</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+                  <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-info fw-bold text-dark">Pindahkan Buku</button>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
 HTML_STATISTIK = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Statistik</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.stat-number{font-size:42px;font-weight:800;color:#b38728;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:600px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h3 class="mb-4 text-center fw-bold">📊 Statistik</h3><div class="row g-3"><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Buku</div></div></div><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Bab</div></div></div></div></div></body></html>"""
 HTML_TONG_SAMPAH = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Tong Sampah</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:700px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>{% for item in sampah_list %}<div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center"><div><span class="badge bg-secondary me-2">{{ item.tipe }}</span><span>{{ item.data_json }}</span></div><div class="d-flex gap-2"><a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i></a><a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash-xmark"></i></a></div></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted">Kosong.</p></div>{% endfor %}</div></body></html>"""
 HTML_LOG = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Log</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning">Riwayat Log</h4><div class="d-flex flex-column gap-2">{% for l in logs %}<div class="card-gold p-3"><span class="badge bg-warning text-dark fw-bold mb-1">{{ l.aksi }}</span><p class="mb-0 small">{{ l.keterangan }}</p></div>{% endfor %}</div></div></body></html>"""
@@ -763,7 +866,10 @@ def tambah_esai():
 
 @app.route('/tema/<int:tema_id>')
 def detail_tema(tema_id):
-    return render_template_string(HTML_TEMA, tema=Tema.query.get_or_404(tema_id), buku_list=Buku.query.filter_by(tema_id=tema_id).all(), is_admin=session.get('is_admin'))
+    tema = Tema.query.get_or_404(tema_id)
+    buku_list = Buku.query.filter_by(tema_id=tema_id).all()
+    semua_tema = Tema.query.order_by(Tema.nama.asc()).all()
+    return render_template_string(HTML_TEMA, tema=tema, buku_list=buku_list, semua_tema=semua_tema, is_admin=session.get('is_admin'))
 
 @app.route('/tambah-tema', methods=['POST'])
 def tambah_tema():
@@ -800,6 +906,28 @@ def edit_buku(buku_id):
     db.session.commit()
     catat_log("EDIT BUKU", f"Memperbarui buku: {buku.judul}")
     return redirect(f'/buku/{buku.id}')
+
+@app.route('/pindah-tema-buku/<int:buku_id>', methods=['POST'])
+def pindah_tema_buku(buku_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku = Buku.query.get_or_404(buku_id)
+    tema_baru_id = request.form.get('tema_baru_id')
+    if tema_baru_id:
+        buku.tema_id = int(tema_baru_id)
+        db.session.commit()
+        catat_log("PINDAH TEMA", f"Memindahkan buku '{buku.judul}' ke tema ID {tema_baru_id}")
+    return redirect(f'/tema/{buku.tema_id}')
+
+@app.route('/hapus-buku/<int:buku_id>/<int:tema_id>', methods=['POST'])
+def hapus_buku(buku_id, tema_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku = Buku.query.get(buku_id)
+    if buku:
+        masukkan_sampah('buku', {'judul': buku.judul, 'subjudul': buku.subjudul})
+        db.session.delete(buku)
+        db.session.commit()
+        catat_log("HAPUS BUKU", f"Menghapus buku: {buku.judul}")
+    return redirect(f'/tema/{tema_id}')
 
 @app.route('/buku/<int:buku_id>')
 def detail_buku(buku_id):
@@ -926,7 +1054,6 @@ def restore_db():
             db.session.rollback()
             app.logger.error(f"Gagal restore database: {str(err)}")
     return redirect('/')
-
 
 if __name__ == '__main__':
     app.run(debug=True)
