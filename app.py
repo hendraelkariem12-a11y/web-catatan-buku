@@ -26,7 +26,6 @@ app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 # ==================================================
 csrf = CSRFProtect(app)
 
-# Penyimpanan sementara untuk Rate Limiter login
 login_attempts = defaultdict(list)
 
 def cek_rate_limit_login(ip):
@@ -143,7 +142,6 @@ with app.app_context():
         ])
         db.session.commit()
     
-    # Auto-Restore otomatis jika file backup_karya.json tersedia dan database kosong
     if Buku.query.count() == 0 and os.path.exists('backup_karya.json'):
         try:
             with open('backup_karya.json', 'r', encoding='utf-8') as f:
@@ -182,10 +180,6 @@ def catat_log(aksi, keterangan=""):
     db.session.add(log_baru)
     db.session.commit()
 
-# ==================================================
-# CUSTOM ERROR HANDLERS (404 & 500)
-# ==================================================
-
 @app.errorhandler(404)
 def halaman_tidak_ditemukan(e):
     return """
@@ -218,10 +212,6 @@ def kesalahan_server(e):
     </body>
     </html>
     """, 500
-
-# ==================================================
-# CSS & JAVASCRIPT SHARED
-# ==================================================
 
 CSS_SHARED = """
     :root { 
@@ -260,7 +250,7 @@ CSS_SHARED = """
     .btn-to-top:hover { transform: scale(1.1); background: #96701f; color: white; }
 
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
-    .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 90px; }
+    .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 170px; }
     
     .toc-box { background: rgba(179, 135, 40, 0.05); border: 1px dashed var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
     .toc-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #b38728; letter-spacing: 0.5px; margin-top: 14px; margin-bottom: 6px; border-bottom: 1px solid rgba(179, 135, 40, 0.2); padding-bottom: 3px; }
@@ -311,10 +301,6 @@ JS_THEME_SCRIPT = """
     }
 </script>
 """
-
-# ==================================================
-# TEMPLATE HTML UTAMA & DETAIL
-# ==================================================
 
 HTML_INDEX = """
 <!DOCTYPE html>
@@ -373,7 +359,6 @@ HTML_INDEX = """
     </div>
     {% endif %}
 
-    <!-- Modal Restore Data -->
     <div class="modal fade" id="restoreModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
@@ -402,7 +387,6 @@ HTML_INDEX = """
         <p class="text-muted small">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
     </div>
 
-    <!-- PENCARIAN CANGGIH -->
     <div class="card-gold p-3 mb-4 rounded-3">
         <div class="search-box mb-2">
             <i class="fa-solid fa-magnifying-glass"></i>
@@ -520,10 +504,6 @@ HTML_BUKU_DETAIL = """
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <a href="/tema/{{ buku.tema_id }}" class="btn btn-custom-outline rounded-pill btn-sm px-4 shadow-sm fw-bold"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Tema</a>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            <!-- FITUR TEXT TO SPEECH / AUDIO READER -->
-            <button type="button" id="btnAudioToggle" class="btn btn-info text-dark btn-sm rounded-pill fw-bold" onclick="toggleTextToSpeech()">
-                <i class="fa-solid fa-headphones me-1"></i> <span id="audioLabel">Dengar Buku (TTS)</span>
-            </button>
             <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-arrow-down me-1"></i> TXT</a>
             <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> PDF Buku</a>
             {% if is_admin %}
@@ -534,12 +514,11 @@ HTML_BUKU_DETAIL = """
     
     <div class="card-gold p-4 mb-4 rounded-4">
         <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-book me-1"></i> Naskah Buku</span>
-        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;" id="bukuJudulTTS">{{ buku.judul.upper() }}</h2>
-        {% if buku.subjudul %}<p class="text-muted mb-2" id="bukuSubjudulTTS">{{ buku.subjudul }}</p>{% endif %}
-        {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0" id="bukuKutipanTTS">"{{ buku.kutipan }}"</blockquote>{% endif %}
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">{{ buku.judul.upper() }}</h2>
+        {% if buku.subjudul %}<p class="text-muted mb-2">{{ buku.subjudul }}</p>{% endif %}
+        {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0">"{{ buku.kutipan }}"</blockquote>{% endif %}
     </div>
 
-    <!-- 📚 DAFTAR ISI TERSTRUKTUR & RAPI -->
     {% if catatan_list %}
     <div class="toc-box">
         <h6 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-list me-2"></i> Daftar Isi Buku</h6>
@@ -567,7 +546,6 @@ HTML_BUKU_DETAIL = """
     </div>
     {% endif %}
 
-    <!-- Modal Edit Buku -->
     {% if is_admin %}
     <div class="modal fade" id="editBukuModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
@@ -621,40 +599,44 @@ HTML_BUKU_DETAIL = """
         {% for cat in catatan_list %}
         <div class="col-12" id="bab-{{ cat.id }}">
             <div class="card-gold p-4 position-relative">
-                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-2">
+                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 280px;">
+                    <!-- Tombol TTS Per Bab -->
+                    <button type="button" id="btnAudio-{{ cat.id }}" class="btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="playBabTTS({{ cat.id }}, '{{ cat.judul_bab | e }}')">
+                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Dengar Bab</span>
+                    </button>
+
                     <form action="/tandai-baca/{{ cat.id }}" method="POST" class="mb-0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm {% if penanda_aktif and penanda_aktif.catatan_id == cat.id %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %} rounded-pill fw-bold px-2 py-1" title="Tandai posisi bacaan terakhir">
-                            <i class="fa-solid fa-bookmark me-1"></i> {% if penanda_aktif and penanda_aktif.catatan_id == cat.id %}Sedang Dibaca{% else %}Tandai Baca{% endif %}
+                            <i class="fa-solid fa-bookmark me-1"></i> {% if penanda_aktif and penanda_aktif.catatan_id == cat.id %}Dibaca{% else %}Tandai{% endif %}
                         </button>
                     </form>
 
                     {% if is_admin %}
-                    <button type="button" class="btn btn-link text-info p-0" data-bs-toggle="modal" data-bs-target="#editBabModal{{ cat.id }}" title="Edit Bab">
+                    <button type="button" class="btn btn-link text-info p-1" data-bs-toggle="modal" data-bs-target="#editBabModal{{ cat.id }}" title="Edit Bab">
                         <i class="fa-solid fa-pen-to-square fs-5"></i>
                     </button>
                     <form action="/toggle-favorit/{{ cat.id }}" method="POST" class="mb-0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-link p-0 {% if cat.favorit %}text-warning{% else %}text-muted{% endif %}" title="Tandai Favorit">
+                        <button type="submit" class="btn btn-link p-1 {% if cat.favorit %}text-warning{% else %}text-muted{% endif %}" title="Tandai Favorit">
                             <i class="fa-solid fa-star fs-5"></i>
                         </button>
                     </form>
                     <form action="/hapus-catatan/{{ cat.id }}/{{ buku.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus bab ini?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-link text-danger p-0" title="Hapus Bab"><i class="fa-solid fa-trash fs-5"></i></button>
+                        <button type="submit" class="btn btn-link text-danger p-1" title="Hapus Bab"><i class="fa-solid fa-trash fs-5"></i></button>
                     </form>
                     {% endif %}
                 </div>
 
                 {% if cat.bagian %}<span class="note-card-badge">{{ cat.bagian }}</span>{% endif %}
                 <h4 class="note-card-title">{{ cat.judul_bab }}</h4>
-                <div class="markdown-body text-main tts-isi-bab" id="content-catatan-{{ cat.id }}"></div>
+                <div class="markdown-body text-main tts-isi-bab-{{ cat.id }}" id="content-catatan-{{ cat.id }}"></div>
                 <textarea id="raw-catatan-{{ cat.id }}" style="display:none;">{{ cat.isi }}</textarea>
                 <div class="text-muted small mt-3">Dibuat: {{ cat.dibuat_pada.strftime('%d %b %Y %H:%M') if cat.dibuat_pada else '-' }}</div>
             </div>
         </div>
 
-        <!-- Modal Edit Bab -->
         {% if is_admin %}
         <div class="modal fade" id="editBabModal{{ cat.id }}" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-lg">
@@ -709,37 +691,42 @@ document.addEventListener("DOMContentLoaded", function(){
     {% endfor %}
 });
 
-// FITUR TEXT TO SPEECH (AUDIO READER) YANG AMAN DARI KARAKTER KHUSUS
+// FITUR TEXT-TO-SPEECH (TTS) KHUSUS PER BAB
 let synth = window.speechSynthesis;
-let isSpeaking = false;
+let activeUtteranceId = null;
 
-function toggleTextToSpeech() {
+function playBabTTS(id, judulBab) {
     if (!synth) {
         alert("Browser Anda tidak mendukung fitur suara (Text-to-Speech).");
         return;
     }
 
-    const btnLabel = document.getElementById('audioLabel');
-    const btnAudio = document.getElementById('btnAudioToggle');
+    const btn = document.getElementById('btnAudio-' + id);
+    const label = document.getElementById('labelAudio-' + id);
 
-    if (synth.speaking) {
+    // Jika sedang berbicara pada bab yang sama, tombol diklik untuk stop
+    if (synth.speaking && activeUtteranceId === id) {
         synth.cancel();
-        isSpeaking = false;
-        btnLabel.innerText = "Dengar Buku (TTS)";
-        btnAudio.className = "btn btn-info text-dark btn-sm rounded-pill fw-bold";
+        resetTombolTTS(id);
+        activeUtteranceId = null;
         return;
     }
 
-    let textToRead = "Judul buku: " + document.getElementById('bukuJudulTTS').innerText + ". ";
-    const sub = document.getElementById('bukuSubjudulTTS');
-    if (sub) textToRead += "Subjudul: " + sub.innerText + ". ";
+    // Jika sedang berbicara di bab lain, hentikan dulu
+    if (synth.speaking) {
+        synth.cancel();
+        if (activeUtteranceId !== null) {
+            resetTombolTTS(activeUtteranceId);
+        }
+    }
 
-    const allBab = document.querySelectorAll('.tts-isi-bab');
-    allBab.forEach((bab, index) => {
-        textToRead += " Bab " + (index + 1) + ". " + bab.innerText + ". ";
-    });
+    // Ambil teks isi bab khusus
+    const contentEl = document.querySelector('.tts-isi-bab-' + id);
+    if (!contentEl) return;
 
-    // Membersihkan simbol-simbol khusus agar suara handphone tidak error/bisu
+    let textToRead = "Judul bab: " + judulBab + ". " + contentEl.innerText;
+    
+    // Bersihkan karakter khusus yang membuat speech synthesis macet di HP
     textToRead = textToRead.replace(/[«»“”"''*#_`~]/g, '');
 
     let utterance = new SpeechSynthesisUtterance(textToRead);
@@ -747,24 +734,31 @@ function toggleTextToSpeech() {
     utterance.rate = 1.0;
 
     utterance.onstart = function() {
-        isSpeaking = true;
-        btnLabel.innerText = "Stop Suara ⏹";
-        btnAudio.className = "btn btn-danger text-white btn-sm rounded-pill fw-bold";
+        activeUtteranceId = id;
+        label.innerText = "Stop ⏹";
+        btn.className = "btn btn-sm btn-danger text-white rounded-pill fw-bold px-2 py-1 shadow-sm";
     };
 
     utterance.onend = function() {
-        isSpeaking = false;
-        btnLabel.innerText = "Dengar Buku (TTS)";
-        btnAudio.className = "btn btn-info text-dark btn-sm rounded-pill fw-bold";
+        resetTombolTTS(id);
+        activeUtteranceId = null;
     };
 
     utterance.onerror = function() {
-        isSpeaking = false;
-        btnLabel.innerText = "Dengar Buku (TTS)";
-        btnAudio.className = "btn btn-info text-dark btn-sm rounded-pill fw-bold";
+        resetTombolTTS(id);
+        activeUtteranceId = null;
     };
 
     synth.speak(utterance);
+}
+
+function resetTombolTTS(id) {
+    const btn = document.getElementById('btnAudio-' + id);
+    const label = document.getElementById('labelAudio-' + id);
+    if (btn && label) {
+        label.innerText = "Dengar Bab";
+        btn.className = "btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm";
+    }
 }
 </script>
 </body>
@@ -951,10 +945,6 @@ HTML_STATISTIK = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><
 HTML_TONG_SAMPAH = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Tong Sampah</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:700px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>{% for item in sampah_list %}<div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center"><div><span class="badge bg-secondary me-2">{{ item.tipe }}</span><span>{{ item.data_json }}</span></div><div class="d-flex gap-2"><a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i></a><a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash-xmark"></i></a></div></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted">Kosong.</p></div>{% endfor %}</div></body></html>"""
 HTML_LOG = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Log</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning">Riwayat Log</h4><div class="d-flex flex-column gap-2">{% for l in logs %}<div class="card-gold p-3"><span class="badge bg-warning text-dark fw-bold mb-1">{{ l.aksi }}</span><p class="mb-0 small">{{ l.keterangan }}</p></div>{% endfor %}</div></div></body></html>"""
 HTML_LOGIN = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Login</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{background:#0f172a;color:#f8fafc;display:flex;justify-content:center;align-items:center;min-height:100vh;}.login-card{background:#1e293b;border:1px solid #334155;padding:30px;border-radius:12px;width:100%;max-width:400px;}</style></head><body><div class="login-card shadow-lg"><h3 class="text-info text-center fw-bold mb-3">🔑 Login Admin</h3>{% if error %}<div class="alert alert-danger py-2 small text-center">{{ error }}</div>{% endif %}<form action="/login" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="username" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Username" required><input type="password" name="password" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Password" required><button type="submit" class="btn btn-info w-100 fw-bold">Masuk</button></form><div class="text-center mt-3"><a href="/" class="text-muted text-decoration-none small">&larr; Kembali</a></div></div></body></html>"""
-
-# ==================================================
-# ROUTING APLIKASI
-# ==================================================
 
 @app.route('/')
 def index():
@@ -1143,40 +1133,14 @@ def export_buku_pdf(buku_id):
     
     styles = getSampleStyleSheet()
     
-    style_cover_title = ParagraphStyle(
-        'CoverTitle', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=24, leading=30,
-        alignment=TA_CENTER
-    )
-    style_cover_sub = ParagraphStyle(
-        'CoverSub', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=13, leading=18,
-        alignment=TA_CENTER
-    )
-    style_cover_quote = ParagraphStyle(
-        'CoverQuote', parent=styles['Normal'],
-        fontName='Helvetica-Oblique', fontSize=10, leading=14,
-        alignment=TA_CENTER
-    )
-    style_bagian = ParagraphStyle(
-        'BagianHeader', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=13, leading=17,
-        spaceBefore=15, spaceAfter=6
-    )
-    style_bab_title = ParagraphStyle(
-        'BabTitle', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=11, leading=15,
-        spaceBefore=10, spaceAfter=4
-    )
-    style_bab_body = ParagraphStyle(
-        'BabBody', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=10, leading=14,
-        alignment=TA_JUSTIFY, spaceAfter=10
-    )
+    style_cover_title = ParagraphStyle('CoverTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=30, alignment=TA_CENTER)
+    style_cover_sub = ParagraphStyle('CoverSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=18, alignment=TA_CENTER)
+    style_cover_quote = ParagraphStyle('CoverQuote', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=10, leading=14, alignment=TA_CENTER)
+    style_bagian = ParagraphStyle('BagianHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=13, leading=17, spaceBefore=15, spaceAfter=6)
+    style_bab_title = ParagraphStyle('BabTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, leading=15, spaceBefore=10, spaceAfter=4)
+    style_bab_body = ParagraphStyle('BabBody', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=14, alignment=TA_JUSTIFY, spaceAfter=10)
 
     story = []
-
-    # HALAMAN SAMPUL / COVER BUKU OTOMATIS
     story.append(Spacer(1, 120))
     story.append(Paragraph(f"<b>{escape(buku.judul.upper())}</b>", style_cover_title))
     story.append(Spacer(1, 15))
@@ -1189,7 +1153,6 @@ def export_buku_pdf(buku_id):
         story.append(Paragraph(f'"{escape(buku.kutipan)}"', style_cover_quote))
     story.append(PageBreak())
 
-    # HALAMAN ISI BAB OTOMATIS
     last_bagian = None
     for c in buku.catatan_list:
         if c.bagian and c.bagian != last_bagian:
