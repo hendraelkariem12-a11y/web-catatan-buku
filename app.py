@@ -709,7 +709,7 @@ document.addEventListener("DOMContentLoaded", function(){
     {% endfor %}
 });
 
-// FITUR TEXT TO SPEECH (AUDIO READER)
+// FITUR TEXT TO SPEECH (AUDIO READER) YANG AMAN DARI KARAKTER KHUSUS
 let synth = window.speechSynthesis;
 let isSpeaking = false;
 
@@ -730,7 +730,6 @@ function toggleTextToSpeech() {
         return;
     }
 
-    // Kumpulkan teks dari judul, subjudul, dan semua isi bab
     let textToRead = "Judul buku: " + document.getElementById('bukuJudulTTS').innerText + ". ";
     const sub = document.getElementById('bukuSubjudulTTS');
     if (sub) textToRead += "Subjudul: " + sub.innerText + ". ";
@@ -740,9 +739,12 @@ function toggleTextToSpeech() {
         textToRead += " Bab " + (index + 1) + ". " + bab.innerText + ". ";
     });
 
+    // Membersihkan simbol-simbol khusus agar suara handphone tidak error/bisu
+    textToRead = textToRead.replace(/[«»“”"''*#_`~]/g, '');
+
     let utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'id-ID'; // Bahasa Indonesia
-    utterance.rate = 1.0; // Kecepatan normal
+    utterance.lang = 'id-ID';
+    utterance.rate = 1.0;
 
     utterance.onstart = function() {
         isSpeaking = true;
@@ -1141,48 +1143,47 @@ def export_buku_pdf(buku_id):
     
     styles = getSampleStyleSheet()
     
-    # Styling khusus PDF Buku
     style_cover_title = ParagraphStyle(
         'CoverTitle', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=26, leading=32,
-        alignment=TA_CENTER, textColorHex='#1e293b'
+        fontName='Helvetica-Bold', fontSize=24, leading=30,
+        alignment=TA_CENTER
     )
     style_cover_sub = ParagraphStyle(
         'CoverSub', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=14, leading=18,
-        alignment=TA_CENTER, textColorHex='#64748b'
+        fontName='Helvetica', fontSize=13, leading=18,
+        alignment=TA_CENTER
     )
     style_cover_quote = ParagraphStyle(
         'CoverQuote', parent=styles['Normal'],
-        fontName='Helvetica-Oblique', fontSize=11, leading=15,
-        alignment=TA_CENTER, textColorHex='#b38728'
+        fontName='Helvetica-Oblique', fontSize=10, leading=14,
+        alignment=TA_CENTER
     )
     style_bagian = ParagraphStyle(
         'BagianHeader', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=14, leading=18,
-        textColorHex='#b38728', spaceBefore=15, spaceAfter=8
+        fontName='Helvetica-Bold', fontSize=13, leading=17,
+        spaceBefore=15, spaceAfter=6
     )
     style_bab_title = ParagraphStyle(
         'BabTitle', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=12, leading=16,
-        textColorHex='#1e293b', spaceBefore=10, spaceAfter=4
+        fontName='Helvetica-Bold', fontSize=11, leading=15,
+        spaceBefore=10, spaceAfter=4
     )
     style_bab_body = ParagraphStyle(
         'BabBody', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=10, leading=15,
-        alignment=TA_JUSTIFY, textColorHex='#334155', spaceAfter=12
+        fontName='Helvetica', fontSize=10, leading=14,
+        alignment=TA_JUSTIFY, spaceAfter=10
     )
 
     story = []
 
     # HALAMAN SAMPUL / COVER BUKU OTOMATIS
-    story.append(Spacer(1, 100))
+    story.append(Spacer(1, 120))
     story.append(Paragraph(f"<b>{escape(buku.judul.upper())}</b>", style_cover_title))
     story.append(Spacer(1, 15))
     if buku.subjudul:
         story.append(Paragraph(escape(buku.subjudul), style_cover_sub))
         story.append(Spacer(1, 20))
-    story.append(Paragraph(f"Disusun oleh: Dede Suhendra", style_cover_sub))
+    story.append(Paragraph("Disusun oleh: Dede Suhendra", style_cover_sub))
     story.append(Spacer(1, 40))
     if buku.kutipan:
         story.append(Paragraph(f'"{escape(buku.kutipan)}"', style_cover_quote))
@@ -1196,11 +1197,9 @@ def export_buku_pdf(buku_id):
             story.append(Paragraph(f"<b>{escape(last_bagian)}</b>", style_bagian))
         
         story.append(Paragraph(f"<b>{escape(c.judul_bab)}</b>", style_bab_title))
-        
-        # Bersihkan teks isi atau ubah baris baru menjadi tag <br/>
         clean_isi = escape(c.isi).replace('\n', '<br/>')
         story.append(Paragraph(clean_isi, style_bab_body))
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 8))
 
     doc.build(story)
     buffer.seek(0)
