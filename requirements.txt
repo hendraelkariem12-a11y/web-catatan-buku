@@ -4,4 +4,3 @@ reportlab
 requests
 Flask-WTF
 gunicorn
-libsql-client
