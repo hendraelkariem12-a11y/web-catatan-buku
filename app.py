@@ -54,13 +54,9 @@ TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
 TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
 
 if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
-    # Koneksi Turso Cloud menggunakan libsql
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite+{TURSO_DATABASE_URL}?secure=true"
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        "connect_args": {
-            "auth_token": TURSO_AUTH_TOKEN
-        }
-    }
+    # Membersihkan format URL agar langsung diterima driver libsql
+    clean_url = TURSO_DATABASE_URL.replace('libsql://', '').strip('/')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"libsql://{clean_url}?authToken={TURSO_AUTH_TOKEN}"
     database_info = "Turso Cloud Database"
 else:
     # Fallback ke SQLite lokal jika dijalankan offline tanpa env
