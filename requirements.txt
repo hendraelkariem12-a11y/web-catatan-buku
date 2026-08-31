@@ -4,3 +4,5 @@ reportlab
 requests
 Flask-WTF
 gunicorn
+python-docx
+ebooklib
