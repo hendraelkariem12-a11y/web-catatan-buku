@@ -38,19 +38,26 @@ def cek_rate_limit_login(ip):
     login_attempts[ip].append(sekarang)
     return True
 
+# Helper Pembersih Teks PDF (Prioritas Tinggi: Anti-Crash PDF)
+def bersihkan_teks_pdf(teks):
+    if not teks:
+        return ""
+    teks_bersih = re.sub(r'<[^>]+>', '', teks)
+    return escape(teks_bersih).replace('\n', '<br/>')
+
 # ==================================================
 # KONFIGURASI LOGGING SISTEM
 # ==================================================
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 # ==================================================
-# KONFIGURASI FOLDER PENYIMPANAN PDF AMAN (RAILWAY PERSISTENT)
+# KONFIGURASI FOLDER PENYIMPANAN PDF AMAN
 # ==================================================
 UPLOAD_PDF_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploaded_pdfs')
 os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 
 # ==================================================
-# KONFIGURASI DATABASE STABIL RAILWAY / LOCAL
+# KONFIGURASI DATABASE
 # ==================================================
 TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
 TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
@@ -98,7 +105,7 @@ class Catatan(db.Model):
     bagian = db.Column(db.String(100), nullable=True)
     judul_bab = db.Column(db.String(200), nullable=False)
     isi = db.Column(db.Text, nullable=False)
-    urutan = db.Column(db.Integer, default=1)  # <<-- FITUR PRIORITAS SEDANG: Kolom Urutan Bab
+    urutan = db.Column(db.Integer, default=1)
     buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=False)
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -252,7 +259,6 @@ CSS_SHARED = """
     .btn-to-top.show { opacity: 1; pointer-events: auto; }
     .btn-to-top:hover { transform: scale(1.1); background: #96701f; color: white; }
 
-    /* FITUR PRIORITAS RENDAH: Indikator Membaca (Progress Bar) */
     #reading-progress {
         position: fixed; top: 0; left: 0; height: 4px;
         background: linear-gradient(90deg, #bf953f, #fcf6ba, #b38728);
@@ -281,7 +287,6 @@ JS_THEME_SCRIPT = """
     document.addEventListener("DOMContentLoaded", function() {
         updateIcon();
         setupScrollTopBtn();
-        // FITUR PRIORITAS RENDAH: JavaScript Indikator Membaca
         window.addEventListener('scroll', function() {
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
@@ -499,7 +504,6 @@ function filterKategori(nama) {
 </html>
 """
 
-# FITUR PRIORITAS SEDANG: Template Hasil Pencarian Server-Side
 HTML_HASIL_CARI = """
 <!DOCTYPE html>
 <html lang="id">
@@ -765,7 +769,6 @@ document.addEventListener("DOMContentLoaded", function(){
     {% endfor %}
 });
 
-// FITUR TEXT-TO-SPEECH (TTS) KHUSUS PER BAB
 let synth = window.speechSynthesis;
 let activeUtteranceId = null;
 
@@ -1023,7 +1026,6 @@ def index():
     penanda_list = PenandaBaca.query.order_by(PenandaBaca.waktu_baca.desc()).limit(1).all()
     return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai, penanda_list=penanda_list)
 
-# FITUR PRIORITAS SEDANG: Route Pencarian Server-Side
 @app.route('/cari')
 def cari_naskah():
     query = request.args.get('q', '').strip()
@@ -1096,7 +1098,7 @@ def cetak_esai_pdf(esai_id):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
-    story = [Paragraph(f"<b>{escape(esai.judul)}</b>", styles['Heading1']), Paragraph(escape(esai.isi).replace('\n', '<br/>'), styles['Normal'])]
+    story = [Paragraph(f"<b>{escape(esai.judul)}</b>", styles['Heading1']), Paragraph(bersihkan_teks_pdf(esai.isi), styles['Normal'])]
     doc.build(story)
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name=f"esai_{esai.id}.pdf", mimetype='application/pdf')
@@ -1104,7 +1106,7 @@ def cetak_esai_pdf(esai_id):
 @app.route('/tambah-esai', methods=['POST'])
 def tambah_esai():
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    db.session.add(EsaiPenulis(judul=request.form.get('judul'), kategori=request.form.get('kategori', 'Refleksi'), isi=request.form.get('isi')))
+    db.session.add(EsaiPenulis(judul=request.form.get('judul', '').strip(), kategori=request.form.get('kategori', 'Refleksi').strip(), isi=request.form.get('isi', '').strip()))
     db.session.commit()
     return redirect('/catatan-penulis')
 
@@ -1118,8 +1120,9 @@ def detail_tema(tema_id):
 @app.route('/tambah-tema', methods=['POST'])
 def tambah_tema():
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    if request.form.get('nama'):
-        db.session.add(Tema(nama=request.form.get('nama')))
+    nama = request.form.get('nama', '').strip()
+    if nama:
+        db.session.add(Tema(nama=nama))
         db.session.commit()
     return redirect('/')
 
@@ -1135,18 +1138,20 @@ def hapus_tema(tema_id):
 @app.route('/tambah-buku', methods=['POST'])
 def tambah_buku():
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    if request.form.get('judul') and request.form.get('tema_id'):
-        db.session.add(Buku(judul=request.form.get('judul'), subjudul=request.form.get('subjudul', ''), tema_id=int(request.form.get('tema_id')), kutipan=request.form.get('kutipan', '')))
+    judul = request.form.get('judul', '').strip()
+    tema_id = request.form.get('tema_id')
+    if judul and tema_id:
+        db.session.add(Buku(judul=judul, subjudul=request.form.get('subjudul', '').strip(), tema_id=int(tema_id), kutipan=request.form.get('kutipan', '').strip()))
         db.session.commit()
-    return redirect(f'/tema/{request.form.get("tema_id")}')
+    return redirect(f'/tema/{tema_id}')
 
 @app.route('/edit-buku/<int:buku_id>', methods=['POST'])
 def edit_buku(buku_id):
     if not session.get('is_admin'): return "Akses Ditolak", 403
     buku = Buku.query.get_or_404(buku_id)
-    buku.judul = request.form.get('judul')
-    buku.subjudul = request.form.get('subjudul')
-    buku.kutipan = request.form.get('kutipan')
+    buku.judul = request.form.get('judul', '').strip()
+    buku.subjudul = request.form.get('subjudul', '').strip()
+    buku.kutipan = request.form.get('kutipan', '').strip()
     db.session.commit()
     catat_log("EDIT BUKU", f"Memperbarui buku: {buku.judul}")
     return redirect(f'/buku/{buku.id}')
@@ -1176,12 +1181,10 @@ def hapus_buku(buku_id, tema_id):
 @app.route('/buku/<int:buku_id>')
 def detail_buku(buku_id):
     buku = Buku.query.get_or_404(buku_id)
-    # FITUR PRIORITAS SEDANG: Mengurutkan berdasarkan kolom urutan lalu ID
     catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.urutan.asc(), Catatan.id.asc()).all()
     penanda_aktif = PenandaBaca.query.filter_by(buku_id=buku_id).first()
     return render_template_string(HTML_BUKU_DETAIL, buku=buku, catatan_list=catatan_list, is_admin=session.get('is_admin'), penanda_aktif=penanda_aktif)
 
-# FITUR PRIORITAS SEDANG: Route Mengubah Urutan Bab
 @app.route('/ubah-urutan-bab/<int:buku_id>', methods=['POST'])
 def ubah_urutan_bab(buku_id):
     if not session.get('is_admin'): return "Akses Ditolak", 403
@@ -1197,18 +1200,29 @@ def ubah_urutan_bab(buku_id):
 @app.route('/tambah-catatan', methods=['POST'])
 def tambah_catatan():
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    if request.form.get('buku_id') and request.form.get('judul_bab') and request.form.get('isi'):
-        db.session.add(Catatan(buku_id=int(request.form.get('buku_id')), bagian=request.form.get('bagian', ''), judul_bab=request.form.get('judul_bab'), isi=request.form.get('isi')))
+    buku_id = request.form.get('buku_id')
+    judul_bab = request.form.get('judul_bab', '').strip()
+    isi = request.form.get('isi', '').strip()
+    bagian = request.form.get('bagian', '').strip()
+
+    if buku_id and judul_bab and isi:
+        db.session.add(Catatan(
+            buku_id=int(buku_id), 
+            bagian=bagian, 
+            judul_bab=judul_bab, 
+            isi=isi
+        ))
         db.session.commit()
-    return redirect(f'/buku/{request.form.get("buku_id")}')
+        catat_log("TAMBAH BAB", f"Menambahkan bab: {judul_bab}")
+    return redirect(f'/buku/{buku_id}')
 
 @app.route('/edit-catatan/<int:catatan_id>', methods=['POST'])
 def edit_catatan(catatan_id):
     if not session.get('is_admin'): return "Akses Ditolak", 403
     catatan = Catatan.query.get_or_404(catatan_id)
-    catatan.bagian = request.form.get('bagian')
-    catatan.judul_bab = request.form.get('judul_bab')
-    catatan.isi = request.form.get('isi')
+    catatan.bagian = request.form.get('bagian', '').strip()
+    catatan.judul_bab = request.form.get('judul_bab', '').strip()
+    catatan.isi = request.form.get('isi', '').strip()
     db.session.commit()
     catat_log("EDIT BAB", f"Memperbarui bab: {catatan.judul_bab}")
     return redirect(f'/buku/{catatan.buku_id}')
@@ -1228,7 +1242,6 @@ def export_buku(buku_id):
     teks = f"JUDUL: {buku.judul}\n" + "\n".join([f"[{c.bagian}] {c.judul_bab}\n{c.isi}\n" for c in buku.catatan_list])
     return Response(teks, mimetype='text/plain', headers={'Content-Disposition': f'attachment;filename={buku.judul}.txt'})
 
-# FITUR PRIORITAS RENDAH: Ekspor DOCX
 @app.route('/export-buku-docx/<int:buku_id>')
 def export_buku_docx(buku_id):
     buku = Buku.query.get_or_404(buku_id)
@@ -1248,7 +1261,6 @@ def export_buku_docx(buku_id):
     filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
     return send_file(buffer, as_attachment=True, download_name=f"{filename}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
-# FITUR PRIORITAS RENDAH: Ekspor EPUB
 @app.route('/export-buku-epub/<int:buku_id>')
 def export_buku_epub(buku_id):
     buku = Buku.query.get_or_404(buku_id)
@@ -1279,6 +1291,7 @@ def export_buku_epub(buku_id):
     filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
     return send_file(buffer, as_attachment=True, download_name=f"{filename}.epub", mimetype='application/epub+zip')
 
+# Prioritas Tinggi: Ekspor PDF Terproteksi Anti-Crash HTML
 @app.route('/export-buku-pdf/<int:buku_id>')
 def export_buku_pdf(buku_id):
     buku = Buku.query.get_or_404(buku_id)
@@ -1314,8 +1327,8 @@ def export_buku_pdf(buku_id):
             story.append(Paragraph(f"<b>{escape(last_bagian)}</b>", style_bagian))
         
         story.append(Paragraph(f"<b>{escape(c.judul_bab)}</b>", style_bab_title))
-        clean_isi = escape(c.isi).replace('\n', '<br/>')
-        story.append(Paragraph(clean_isi, style_bab_body))
+        isi_pdf_aman = bersihkan_teks_pdf(c.isi)
+        story.append(Paragraph(isi_pdf_aman, style_bab_body))
         story.append(Spacer(1, 8))
 
     doc.build(story)
@@ -1352,7 +1365,6 @@ def hapus_permanen(item_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # KEAMANAN: Rate limiting aktif saat proses login POST
         if not cek_rate_limit_login(request.remote_addr):
             return "Terlalu banyak percobaan login. Coba lagi 1 menit kemudian.", 429
         if request.form.get('username') == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form.get('password')):
