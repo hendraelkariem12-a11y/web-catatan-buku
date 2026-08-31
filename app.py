@@ -180,6 +180,40 @@ with app.app_context():
 def serve_profile():
     return send_from_directory('.', 'profile.jpg')
 
+@app.route('/logo.png')
+def serve_logo():
+    if os.path.exists('logo.png'):
+        return send_from_directory('.', 'logo.png')
+    return send_from_directory('.', 'profile.jpg')
+
+@app.route('/manifest.json')
+def serve_manifest():
+    manifest_data = {
+        "name": "Ruang Literasi Hendra",
+        "short_name": "LiterasiHendra",
+        "description": "Perpustakaan Digital & Naskah Karya - Dede Suhendra",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#0b132b",
+        "theme_color": "#b38728",
+        "orientation": "portrait",
+        "icons": [
+            {
+                "src": "/logo.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "/logo.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    }
+    return Response(json.dumps(manifest_data), mimetype='application/json')
+
 def masukkan_sampah(tipe, data_dict):
     item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
     db.session.add(item)
@@ -275,6 +309,35 @@ CSS_SHARED = """
     .toc-list li { margin-bottom: 5px; font-size: 13.5px; padding-left: 12px; }
     .toc-list a { color: var(--text-main); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .toc-list a:hover { color: #b38728; text-decoration: underline; }
+
+    /* SPLASH SCREEN & NATIVE HEADER APP */
+    #splash-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+        background: radial-gradient(circle at center, #1c2541 0%, #0b132b 100%);
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 999999; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+    }
+    #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .splash-container { text-align: center; animation: zoomInSplash 0.8s ease-out; }
+    .splash-logo-wrapper { position: relative; width: 130px; height: 130px; margin: 0 auto 20px auto; }
+    .splash-logo-img {
+        width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+        border: 3px solid #b38728; box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+        animation: logoGlow 2s infinite alternate ease-in-out;
+    }
+    .splash-title { font-family: 'Cinzel', serif; font-weight: 800; font-size: 22px; color: #fcf6ba !important; letter-spacing: 2px; margin-bottom: 5px; }
+    .splash-subtitle { font-size: 12px; color: #94a3b8 !important; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+    @keyframes logoGlow {
+        0% { transform: scale(0.96); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
+        100% { transform: scale(1.04); box-shadow: 0 0 35px rgba(212, 175, 55, 0.7); }
+    }
+    @keyframes zoomInSplash { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+    .app-header-logo {
+        width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+        border: 3px solid #b38728; padding: 3px; background: var(--card-paper);
+        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25); transition: transform 0.3s ease;
+    }
+    .app-header-logo:hover { transform: rotate(5deg) scale(1.05); }
 """
 
 JS_THEME_SCRIPT = """
@@ -296,6 +359,15 @@ JS_THEME_SCRIPT = """
                 progressBar.style.width = scrolled + "%";
             }
         });
+    });
+
+    window.addEventListener('load', function() {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            setTimeout(function() {
+                splash.classList.add('hidden');
+            }, 1200);
+        }
     });
 
     function toggleModeInstan() {
@@ -324,6 +396,39 @@ JS_THEME_SCRIPT = """
             }
         });
     }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const pwaContainer = document.getElementById('pwa-install-container');
+        if (pwaContainer) {
+            pwaContainer.style.display = 'block';
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const btnInstall = document.getElementById('btnInstallPWA');
+        if (btnInstall) {
+            btnInstall.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        console.log('Pengguna menginstal PWA');
+                    }
+                    deferredPrompt = null;
+                    const pwaContainer = document.getElementById('pwa-install-container');
+                    if (pwaContainer) pwaContainer.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        const pwaContainer = document.getElementById('pwa-install-container');
+        if (pwaContainer) pwaContainer.style.display = 'none';
+    });
 </script>
 """
 
@@ -333,14 +438,31 @@ HTML_INDEX = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perpustakaan Karya - Dede Suhendra</title>
+    <title>Ruang Literasi Hendra - Dede Suhendra</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#b38728">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/logo.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>""" + CSS_SHARED + """</style>
     """ + JS_THEME_SCRIPT + """
 </head>
 <body>
+<div id="splash-screen">
+    <div class="splash-container">
+        <div class="splash-logo-wrapper">
+            <img src="/logo.png" onerror="this.src='/profile.jpg'" class="splash-logo-img" alt="Ruang Literasi Hendra">
+        </div>
+        <div class="splash-title">RUANG LITERASI HENDRA</div>
+        <div class="splash-subtitle mb-3">Koleksi Karya & Refleksi</div>
+        <div class="spinner-border text-warning spinner-border-sm" role="status"></div>
+    </div>
+</div>
+
 <button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
     <i class="fa-solid fa-moon" id="icon-mode"></i>
 </button>
@@ -406,10 +528,17 @@ HTML_INDEX = """
       </div>
     </div>
     
-    <div class="text-center mb-5">
-        <span class="top-badge mb-2">OFFICIAL VAULT</span>
-        <h1 class="header-title h2 mb-2">Catatan & Karya Buku</h1>
-        <p class="text-muted small">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
+    <div class="text-center mb-4">
+        <img src="/logo.png" onerror="this.src='/profile.jpg'" alt="Ruang Literasi Hendra" class="app-header-logo mb-3">
+        <h1 class="header-title h2 mb-1" style="font-family:'Cinzel', serif;">RUANG LITERASI HENDRA</h1>
+        <span class="top-badge mb-2 d-inline-block">OFFICIAL DIGITAL VAULT</span>
+        <p class="text-muted small mt-1">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
+    </div>
+
+    <div id="pwa-install-container" class="text-center mb-4" style="display: none;">
+        <button id="btnInstallPWA" class="btn btn-warning text-dark rounded-pill px-4 py-2 fw-bold shadow-sm">
+            <i class="fa-solid fa-download me-2"></i> Download / Instal Aplikasi
+        </button>
     </div>
 
     <div class="card-gold p-3 mb-4 rounded-3">
@@ -1420,4 +1549,3 @@ def restore_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
