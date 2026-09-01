@@ -164,7 +164,7 @@ with app.app_context():
                         db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
                 for c in data.get('catatan', []):
                     if not Catatan.query.get(c['id']):
-                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
+                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1)))
                 for e in data.get('esai', []):
                     if not EsaiPenulis.query.get(e['id']):
                         db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
@@ -286,6 +286,8 @@ CSS_SHARED = """
     .toc-list li { margin-bottom: 5px; font-size: 13.5px; padding-left: 12px; }
     .toc-list a { color: var(--text-main); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .toc-list a:hover { color: #b38728; text-decoration: underline; }
+
+    .section-header-card { background: rgba(179, 135, 40, 0.12); border-left: 5px solid #b38728; border-radius: 10px; padding: 12px 18px; margin-top: 30px; margin-bottom: 15px; font-family: 'Cinzel', serif; font-weight: 800; color: #b38728 !important; font-size: 16px; text-transform: uppercase; }
 
     /* SPLASH SCREEN & NATIVE HEADER APP */
     #splash-screen {
@@ -674,6 +676,7 @@ HTML_BUKU_DETAIL = """
             <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> PDF Buku</a>
             {% if is_admin %}
             <button type="button" class="btn btn-info btn-sm rounded-pill fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#editBukuModal"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Buku</button>
+            <button type="button" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#modalUrutanBab"><i class="fa-solid fa-arrow-down-up-2-1 me-1"></i> Ubah Urutan Bab</button>
             {% endif %}
         </div>
     </div>
@@ -685,19 +688,10 @@ HTML_BUKU_DETAIL = """
         {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0">"{{ buku.kutipan }}"</blockquote>{% endif %}
     </div>
 
-    {% if catatan_list %}
+    {% if catatan_grouped %}
     <div class="toc-box">
         <h6 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-list me-2"></i> Daftar Isi Buku</h6>
-        {% set grouped = {} %}
-        {% for cat in catatan_list %}
-            {% set bagian_key = cat.bagian if cat.bagian else 'Bagian Utama' %}
-            {% if bagian_key not in grouped %}
-                {% set _ = grouped.update({bagian_key: []}) %}
-            {% endif %}
-            {% set _ = grouped[bagian_key].append(cat) %}
-        {% endfor %}
-
-        {% for bagian, cats in grouped.items() %}
+        {% for bagian, cats in catatan_grouped.items() %}
             <div class="toc-section-title"><i class="fa-solid fa-bookmark me-1 text-warning"></i> {{ bagian }}</div>
             <ul class="toc-list">
                 {% for c in cats %}
@@ -713,6 +707,35 @@ HTML_BUKU_DETAIL = """
     {% endif %}
 
     {% if is_admin %}
+    <div class="modal fade" id="modalUrutanBab" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title fw-bold text-warning"><i class="fa-solid fa-arrow-down-up-2-1 me-2"></i>Atur Urutan Bab</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <form action="/ubah-urutan-bab/{{ buku.id }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+                <p class="small text-muted mb-3">Ubah angka urutan bab di bawah ini (semakin kecil angkanya, semakin tinggi posisinya):</p>
+                {% for cat in catatan_list %}
+                <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-secondary rounded">
+                    <input type="hidden" name="catatan_ids[]" value="{{ cat.id }}">
+                    <input type="number" name="urutan_vals[]" class="form-control form-control-sm text-center fw-bold" style="width:70px;" value="{{ cat.urutan }}" min="1">
+                    <span class="badge bg-warning text-dark">{{ cat.bagian or 'Utama' }}</span>
+                    <strong class="text-truncate">{{ cat.judul_bab }}</strong>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark">Simpan Urutan</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="editBukuModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
@@ -751,8 +774,9 @@ HTML_BUKU_DETAIL = """
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="buku_id" value="{{ buku.id }}">
             <div class="row g-2 mb-2">
-                <div class="col-md-4"><input type="text" name="bagian" class="form-control form-control-sm" placeholder="Bagian (Misal: Bab 1)"></div>
-                <div class="col-md-8"><input type="text" name="judul_bab" class="form-control form-control-sm" placeholder="Judul Bab..." required></div>
+                <div class="col-md-3"><input type="text" name="bagian" class="form-control form-control-sm" placeholder="Kategori/Bagian"></div>
+                <div class="col-md-7"><input type="text" name="judul_bab" class="form-control form-control-sm" placeholder="Judul Bab..." required></div>
+                <div class="col-md-2"><input type="number" name="urutan" class="form-control form-control-sm" placeholder="Urutan (cth: 1)" value="1" min="1"></div>
             </div>
             <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung)..." required></textarea></div>
             <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Bab</button>
@@ -762,12 +786,17 @@ HTML_BUKU_DETAIL = """
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Bab & Catatan:</h5>
     <div class="row g-3">
-        {% for cat in catatan_list %}
+        {% for bagian, cats in catatan_grouped.items() %}
+        <div class="col-12">
+            <div class="section-header-card"><i class="fa-solid fa-bookmark me-2"></i> {{ bagian }}</div>
+        </div>
+        {% for cat in cats %}
         <div class="col-12" id="bab-{{ cat.id }}">
             <div class="card-gold p-4 position-relative">
-                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 280px;">
+                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 320px;">
+                    <span class="badge bg-dark text-warning border border-warning px-2 py-1 me-1">Urutan #{{ cat.urutan }}</span>
                     <button type="button" id="btnAudio-{{ cat.id }}" class="btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="playBabTTS({{ cat.id }}, '{{ cat.judul_bab | e }}')">
-                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Dengar Bab</span>
+                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Dengar</span>
                     </button>
 
                     <form action="/tandai-baca/{{ cat.id }}" method="POST" class="mb-0">
@@ -814,13 +843,17 @@ HTML_BUKU_DETAIL = """
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <div class="modal-body">
                     <div class="row g-2 mb-2">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="small text-muted">Bagian</label>
                             <input type="text" name="bagian" class="form-control bg-secondary text-white" value="{{ cat.bagian or '' }}">
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-7">
                             <label class="small text-muted">Judul Bab</label>
                             <input type="text" name="judul_bab" class="form-control bg-secondary text-white" value="{{ cat.judul_bab }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted">Urutan</label>
+                            <input type="number" name="urutan" class="form-control bg-secondary text-white" value="{{ cat.urutan }}" min="1">
                         </div>
                     </div>
                     <div class="mb-2">
@@ -837,6 +870,7 @@ HTML_BUKU_DETAIL = """
           </div>
         </div>
         {% endif %}
+        {% endfor %}
         
         {% else %}
         <div class="text-center py-4 card-gold rounded-4">
@@ -915,7 +949,7 @@ function resetTombolTTS(id) {
     const btn = document.getElementById('btnAudio-' + id);
     const label = document.getElementById('labelAudio-' + id);
     if (btn && label) {
-        label.innerText = "Dengar Bab";
+        label.innerText = "Dengar";
         btn.className = "btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm";
     }
 }
@@ -1270,16 +1304,28 @@ def detail_buku(buku_id):
     buku = Buku.query.get_or_404(buku_id)
     catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.urutan.asc(), Catatan.id.asc()).all()
     penanda_aktif = PenandaBaca.query.filter_by(buku_id=buku_id).first()
-    return render_template_string(HTML_BUKU_DETAIL, buku=buku, catatan_list=catatan_list, is_admin=session.get('is_admin'), penanda_aktif=penanda_aktif)
+    
+    # Pengelompokan Bab sesuai Bagian / Kategori untuk Daftar Isi & Tampilan Kartu
+    catatan_grouped = defaultdict(list)
+    for c in catatan_list:
+        bagian_key = c.bagian if c.bagian else 'Bagian Utama'
+        catatan_grouped[bagian_key].append(c)
+
+    return render_template_string(HTML_BUKU_DETAIL, buku=buku, catatan_list=catatan_list, catatan_grouped=dict(catatan_grouped), is_admin=session.get('is_admin'), penanda_aktif=penanda_aktif)
 
 @app.route('/ubah-urutan-bab/<int:buku_id>', methods=['POST'])
 def ubah_urutan_bab(buku_id):
     if not session.get('is_admin'): return "Akses Ditolak", 403
-    urutan_data = request.form.getlist('catatan_id[]')
-    for index, c_id in enumerate(urutan_data, start=1):
+    catatan_ids = request.form.getlist('catatan_ids[]')
+    urutan_vals = request.form.getlist('urutan_vals[]')
+    
+    for c_id, u_val in zip(catatan_ids, urutan_vals):
         catatan = Catatan.query.get(c_id)
         if catatan:
-            catatan.urutan = index
+            try:
+                catatan.urutan = int(u_val)
+            except ValueError:
+                pass
     db.session.commit()
     catat_log("URUTAN BAB", f"Mengubah urutan bab buku ID: {buku_id}")
     return redirect(f'/buku/{buku_id}')
@@ -1291,13 +1337,20 @@ def tambah_catatan():
     judul_bab = request.form.get('judul_bab', '').strip()
     isi = request.form.get('isi', '').strip()
     bagian = request.form.get('bagian', '').strip()
+    urutan_val = request.form.get('urutan', 1)
+
+    try:
+        urutan_val = int(urutan_val)
+    except ValueError:
+        urutan_val = 1
 
     if buku_id and judul_bab and isi:
         db.session.add(Catatan(
             buku_id=int(buku_id), 
             bagian=bagian, 
             judul_bab=judul_bab, 
-            isi=isi
+            isi=isi,
+            urutan=urutan_val
         ))
         db.session.commit()
         catat_log("TAMBAH BAB", f"Menambahkan bab: {judul_bab}")
@@ -1310,6 +1363,14 @@ def edit_catatan(catatan_id):
     catatan.bagian = request.form.get('bagian', '').strip()
     catatan.judul_bab = request.form.get('judul_bab', '').strip()
     catatan.isi = request.form.get('isi', '').strip()
+    
+    urutan_val = request.form.get('urutan')
+    if urutan_val:
+        try:
+            catatan.urutan = int(urutan_val)
+        except ValueError:
+            pass
+
     db.session.commit()
     catat_log("EDIT BAB", f"Memperbarui bab: {catatan.judul_bab}")
     return redirect(f'/buku/{catatan.buku_id}')
@@ -1471,7 +1532,7 @@ def backup_db():
     data = {
         "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
         "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
-        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id} for c in Catatan.query.all()],
+        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan} for c in Catatan.query.all()],
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
@@ -1492,7 +1553,7 @@ def restore_db():
                     db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
             for c in data.get('catatan', []):
                 if not Catatan.query.get(c['id']):
-                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id']))
+                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1)))
             for e in data.get('esai', []):
                 if not EsaiPenulis.query.get(e['id']):
                     db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
