@@ -278,6 +278,7 @@ CSS_SHARED = """
 
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 170px; }
+    
     .markdown-body img {
         max-width: 100% !important;
         height: auto !important;
@@ -285,7 +286,8 @@ CSS_SHARED = """
         margin: 15px auto;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
         display: block;
-    
+    }
+
     .toc-box { background: rgba(179, 135, 40, 0.05); border: 1px dashed var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
     .toc-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #b38728; letter-spacing: 0.5px; margin-top: 14px; margin-bottom: 6px; border-bottom: 1px solid rgba(179, 135, 40, 0.2); padding-bottom: 3px; }
     .toc-section-title:first-child { margin-top: 0; }
@@ -305,12 +307,6 @@ CSS_SHARED = """
     }
     #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
     .splash-container { text-align: center; animation: zoomInSplash 0.8s ease-out; }
-    .splash-logo-wrapper { position: relative; width: 130px; height: 130px; margin: 0 auto 20px auto; }
-    .splash-logo-img {
-        width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
-        border: 3px solid #b38728; box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
-        animation: logoGlow 2s infinite alternate ease-in-out;
-    }
     .splash-title { font-family: 'Cinzel', serif; font-weight: 800; font-size: 22px; color: #fcf6ba !important; letter-spacing: 2px; margin-bottom: 5px; }
     .splash-subtitle { font-size: 12px; color: #94a3b8 !important; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
     @keyframes logoGlow {
@@ -318,12 +314,40 @@ CSS_SHARED = """
         100% { transform: scale(1.04); box-shadow: 0 0 35px rgba(212, 175, 55, 0.7); }
     }
     @keyframes zoomInSplash { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+
+    /* PEMBATAS UKURAN LOGO HEADER & SPLASH SCREEN */
     .app-header-logo {
-        width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
-        border: 3px solid #b38728; padding: 3px; background: var(--card-paper);
-        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25); transition: transform 0.3s ease;
+        width: 100px !important;
+        height: 100px !important;
+        max-width: 100px !important;
+        max-height: 100px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 3px solid #b38728;
+        padding: 3px;
+        background: var(--card-paper);
+        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
+        margin: 0 auto 15px auto;
+        display: block;
     }
-    .app-header-logo:hover { transform: rotate(5deg) scale(1.05); }
+
+    .splash-logo-wrapper {
+        position: relative;
+        width: 110px !important;
+        height: 110px !important;
+        margin: 0 auto 20px auto;
+    }
+
+    .splash-logo-img {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 110px !important;
+        max-height: 110px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 3px solid #b38728;
+        box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+    }
 """
 
 JS_THEME_SCRIPT = """
@@ -1312,7 +1336,6 @@ def detail_buku(buku_id):
     catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.urutan.asc(), Catatan.id.asc()).all()
     penanda_aktif = PenandaBaca.query.filter_by(buku_id=buku_id).first()
     
-    # Pengelompokan Bab sesuai Bagian / Kategori untuk Daftar Isi & Tampilan Kartu
     catatan_grouped = defaultdict(list)
     for c in catatan_list:
         bagian_key = c.bagian if c.bagian else 'Bagian Utama'
