@@ -291,6 +291,24 @@ CSS_SHARED = """
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 170px; }
     
+    /* STYLING KOTAK KODE MARKDOWN */
+    .markdown-body pre {
+        background-color: #0f172a !important; /* Warna latar belakang kotak kode (Dark) */
+        color: #38bdf8 !important;            /* Warna teks kode (Cyan/Light Blue) */
+        padding: 14px 18px !important;
+        border-radius: 12px !important;
+        border: 1px solid #334155 !important;
+        overflow-x: auto !important;          /* Scroll horizontal jika kode panjang */
+        margin: 15px 0 !important;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .markdown-body code {
+        font-family: 'Fira Code', 'Courier New', Consolas, monospace !important;
+        font-size: 13.5px !important;
+        color: inherit !important;
+    }
+
     .markdown-body img {
         max-width: 100% !important;
         height: auto !important;
@@ -371,6 +389,8 @@ CSS_SHARED = """
         box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
     }
 """
+
+
 
 JS_THEME_SCRIPT = """
 <script>
