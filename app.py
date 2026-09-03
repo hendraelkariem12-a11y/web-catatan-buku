@@ -45,7 +45,7 @@ def bersihkan_teks_pdf(teks):
     teks_bersih = re.sub(r'<[^>]+>', '', teks)
     return escape(teks_bersih).replace('\n', '<br/>')
 
-# Helper Konversi Google Drive Link biasa ke Direct Stream Link
+# Helper Konversi Google Drive Link biasa ke Embed/Preview Stream Link
 def convert_gdrive_url(url):
     if not url:
         return ""
@@ -53,7 +53,7 @@ def convert_gdrive_url(url):
     match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
     if match:
         file_id = match.group(1)
-        return f"https://drive.google.com/uc?export=download&id={file_id}"
+        return f"https://drive.google.com/file/d/{file_id}/preview"
     return url
 
 # ==================================================
@@ -117,7 +117,7 @@ class Catatan(db.Model):
     judul_bab = db.Column(db.String(200), nullable=False)
     isi = db.Column(db.Text, nullable=False)
     urutan = db.Column(db.Integer, default=1)
-    file_audio = db.Column(db.Text, nullable=True)  # <-- FITUR BARU: URL AUDIO REKAMAN
+    file_audio = db.Column(db.Text, nullable=True)
     buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=False)
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -895,10 +895,14 @@ HTML_BUKU_DETAIL = """
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <small class="fw-bold text-warning"><i class="fa-solid fa-microphone me-1"></i> Pemutar Suara Rekaman Asli Bab Ini:</small>
                     </div>
+                    {% if "drive.google.com" in cat.file_audio %}
+                    <iframe src="{{ cat.file_audio }}" width="100%" height="60" style="border:none; border-radius:8px;" allow="autoplay"></iframe>
+                    {% else %}
                     <audio controls class="w-100" style="height: 38px;">
                         <source src="{{ cat.file_audio }}" type="audio/mpeg">
                         Browser Anda tidak mendukung pemutar audio.
                     </audio>
+                    {% endif %}
                 </div>
                 {% endif %}
 
