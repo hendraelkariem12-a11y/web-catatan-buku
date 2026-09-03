@@ -45,6 +45,17 @@ def bersihkan_teks_pdf(teks):
     teks_bersih = re.sub(r'<[^>]+>', '', teks)
     return escape(teks_bersih).replace('\n', '<br/>')
 
+# Helper Konversi Google Drive Link biasa ke Direct Stream Link
+def convert_gdrive_url(url):
+    if not url:
+        return ""
+    url = url.strip()
+    match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    return url
+
 # ==================================================
 # KONFIGURASI LOGGING SISTEM
 # ==================================================
@@ -106,6 +117,7 @@ class Catatan(db.Model):
     judul_bab = db.Column(db.String(200), nullable=False)
     isi = db.Column(db.Text, nullable=False)
     urutan = db.Column(db.Integer, default=1)
+    file_audio = db.Column(db.Text, nullable=True)  # <-- FITUR BARU: URL AUDIO REKAMAN
     buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=False)
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -164,7 +176,7 @@ with app.app_context():
                         db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
                 for c in data.get('catatan', []):
                     if not Catatan.query.get(c['id']):
-                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1)))
+                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
                 for e in data.get('esai', []):
                     if not EsaiPenulis.query.get(e['id']):
                         db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
@@ -297,6 +309,16 @@ CSS_SHARED = """
     .toc-list a:hover { color: #b38728; text-decoration: underline; }
 
     .section-header-card { background: rgba(179, 135, 40, 0.12); border-left: 5px solid #b38728; border-radius: 10px; padding: 12px 18px; margin-top: 30px; margin-bottom: 15px; font-family: 'Cinzel', serif; font-weight: 800; color: #b38728 !important; font-size: 16px; text-transform: uppercase; }
+
+    /* AUDIO PLAYER BOX */
+    .audio-player-box {
+        background: rgba(179, 135, 40, 0.08);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
 
     /* SPLASH SCREEN & NATIVE HEADER APP */
     #splash-screen {
@@ -729,6 +751,7 @@ HTML_BUKU_DETAIL = """
                 <li>
                     <a href="#bab-{{ c.id }}">
                         <i class="fa-solid fa-angle-right text-muted small"></i> {{ c.judul_bab }}
+                        {% if c.file_audio %}<span class="badge bg-success text-white ms-1" style="font-size: 10px;">🎙️ Audio</span>{% endif %}
                     </a>
                 </li>
                 {% endfor %}
@@ -809,6 +832,9 @@ HTML_BUKU_DETAIL = """
                 <div class="col-md-7"><input type="text" name="judul_bab" class="form-control form-control-sm" placeholder="Judul Bab..." required></div>
                 <div class="col-md-2"><input type="number" name="urutan" class="form-control form-control-sm" placeholder="Urutan (cth: 1)" value="1" min="1"></div>
             </div>
+            <div class="mb-2">
+                <input type="url" name="file_audio" class="form-control form-control-sm" placeholder="🎙️ Paste Link Google Drive Audio (Opsional)...">
+            </div>
             <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung)..." required></textarea></div>
             <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Bab</button>
         </form>
@@ -824,10 +850,17 @@ HTML_BUKU_DETAIL = """
         {% for cat in cats %}
         <div class="col-12" id="bab-{{ cat.id }}">
             <div class="card-gold p-4 position-relative">
-                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 320px;">
+                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 380px;">
                     <span class="badge bg-dark text-warning border border-warning px-2 py-1 me-1">Urutan #{{ cat.urutan }}</span>
+                    
+                    {% if cat.file_audio %}
+                    <button type="button" class="btn btn-sm btn-success text-white rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="toggleAudioPlayer({{ cat.id }})">
+                        <i class="fa-solid fa-circle-play me-1"></i> Rekaman
+                    </button>
+                    {% endif %}
+
                     <button type="button" id="btnAudio-{{ cat.id }}" class="btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="playBabTTS({{ cat.id }}, '{{ cat.judul_bab | e }}')">
-                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Dengar</span>
+                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Suara AI</span>
                     </button>
 
                     <form action="/tandai-baca/{{ cat.id }}" method="POST" class="mb-0">
@@ -856,6 +889,19 @@ HTML_BUKU_DETAIL = """
 
                 {% if cat.bagian %}<span class="note-card-badge">{{ cat.bagian }}</span>{% endif %}
                 <h4 class="note-card-title">{{ cat.judul_bab }}</h4>
+
+                {% if cat.file_audio %}
+                <div class="audio-player-box" id="player-box-{{ cat.id }}">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <small class="fw-bold text-warning"><i class="fa-solid fa-microphone me-1"></i> Pemutar Suara Rekaman Asli Bab Ini:</small>
+                    </div>
+                    <audio controls class="w-100" style="height: 38px;">
+                        <source src="{{ cat.file_audio }}" type="audio/mpeg">
+                        Browser Anda tidak mendukung pemutar audio.
+                    </audio>
+                </div>
+                {% endif %}
+
                 <div class="markdown-body text-main tts-isi-bab-{{ cat.id }}" id="content-catatan-{{ cat.id }}"></div>
                 <textarea id="raw-catatan-{{ cat.id }}" style="display:none;">{{ cat.isi }}</textarea>
                 <div class="text-muted small mt-3">Dibuat: {{ cat.dibuat_pada.strftime('%d %b %Y %H:%M') if cat.dibuat_pada else '-' }}</div>
@@ -886,6 +932,10 @@ HTML_BUKU_DETAIL = """
                             <label class="small text-muted">Urutan</label>
                             <input type="number" name="urutan" class="form-control bg-secondary text-white" value="{{ cat.urutan }}" min="1">
                         </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small text-muted">Link Audio Rekaman Google Drive (Opsional)</label>
+                        <input type="text" name="file_audio" class="form-control bg-secondary text-white" value="{{ cat.file_audio or '' }}" placeholder="Paste link Google Drive...">
                     </div>
                     <div class="mb-2">
                         <label class="small text-muted">Isi Naskah (Markdown)</label>
@@ -920,6 +970,18 @@ document.addEventListener("DOMContentLoaded", function(){
         document.getElementById('content-catatan-{{ cat.id }}').innerHTML = marked.parse(rawText);
     {% endfor %}
 });
+
+function toggleAudioPlayer(id) {
+    const playerBox = document.getElementById('player-box-' + id);
+    if (playerBox) {
+        if (playerBox.style.display === 'none') {
+            playerBox.style.display = 'block';
+            playerBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            playerBox.style.display = 'none';
+        }
+    }
+}
 
 let synth = window.speechSynthesis;
 let activeUtteranceId = null;
@@ -980,7 +1042,7 @@ function resetTombolTTS(id) {
     const btn = document.getElementById('btnAudio-' + id);
     const label = document.getElementById('labelAudio-' + id);
     if (btn && label) {
-        label.innerText = "Dengar";
+        label.innerText = "Suara AI";
         btn.className = "btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm";
     }
 }
@@ -1368,11 +1430,14 @@ def tambah_catatan():
     isi = request.form.get('isi', '').strip()
     bagian = request.form.get('bagian', '').strip()
     urutan_val = request.form.get('urutan', 1)
+    file_audio_input = request.form.get('file_audio', '').strip()
 
     try:
         urutan_val = int(urutan_val)
     except ValueError:
         urutan_val = 1
+
+    file_audio_converted = convert_gdrive_url(file_audio_input)
 
     if buku_id and judul_bab and isi:
         db.session.add(Catatan(
@@ -1380,7 +1445,8 @@ def tambah_catatan():
             bagian=bagian, 
             judul_bab=judul_bab, 
             isi=isi,
-            urutan=urutan_val
+            urutan=urutan_val,
+            file_audio=file_audio_converted
         ))
         db.session.commit()
         catat_log("TAMBAH BAB", f"Menambahkan bab: {judul_bab}")
@@ -1393,6 +1459,9 @@ def edit_catatan(catatan_id):
     catatan.bagian = request.form.get('bagian', '').strip()
     catatan.judul_bab = request.form.get('judul_bab', '').strip()
     catatan.isi = request.form.get('isi', '').strip()
+    
+    file_audio_input = request.form.get('file_audio', '').strip()
+    catatan.file_audio = convert_gdrive_url(file_audio_input)
     
     urutan_val = request.form.get('urutan')
     if urutan_val:
@@ -1562,7 +1631,7 @@ def backup_db():
     data = {
         "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
         "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
-        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan} for c in Catatan.query.all()],
+        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan, "file_audio": c.file_audio} for c in Catatan.query.all()],
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
@@ -1583,7 +1652,7 @@ def restore_db():
                     db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
             for c in data.get('catatan', []):
                 if not Catatan.query.get(c['id']):
-                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1)))
+                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
             for e in data.get('esai', []):
                 if not EsaiPenulis.query.get(e['id']):
                     db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
