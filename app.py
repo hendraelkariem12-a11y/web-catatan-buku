@@ -756,6 +756,17 @@ HTML_BUKU_DETAIL = """
     </div>
     
     <div class="card-gold p-4 mb-4 rounded-4">
+    {% if buku.cover_url %}
+<div class="mb-3">
+    <a href="{{ buku.cover_url }}" target="_blank">
+        <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+             style="max-width: 160px; height: auto; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); border: 2px solid #b38728; transition: transform 0.3s ease;"
+             onmouseover="this.style.transform='scale(1.05)'" 
+             onmouseout="this.style.transform='scale(1)'">
+    </a>
+</div>
+{% endif %}
+
         <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-book me-1"></i> Naskah Buku</span>
         <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">{{ buku.judul.upper() }}</h2>
         {% if buku.subjudul %}<p class="text-muted mb-2">{{ buku.subjudul }}</p>{% endif %}
@@ -966,6 +977,10 @@ HTML_BUKU_DETAIL = """
                         <label class="small text-muted">Isi Naskah (Markdown)</label>
                         <textarea name="isi" class="form-control bg-secondary text-white" rows="10" required>{{ cat.isi }}</textarea>
                     </div>
+                    <div class="mb-2">
+        <label class="small text-muted">Link Gambar Cover (URL)</label>
+        <input type="url" name="cover_url" class="form-control bg-secondary text-white" value="{{ buku.cover_url or '' }}" placeholder="https://i.imgur.com/...jpg">
+    </div>
                   </div>
                   <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
@@ -1391,6 +1406,7 @@ def edit_buku(buku_id):
     buku.judul = request.form.get('judul', '').strip()
     buku.subjudul = request.form.get('subjudul', '').strip()
     buku.kutipan = request.form.get('kutipan', '').strip()
+    buku.cover_url = request.form.get('cover_url', '').strip()
     db.session.commit()
     catat_log("EDIT BUKU", f"Memperbarui buku: {buku.judul}")
     return redirect(f'/buku/{buku.id}')
