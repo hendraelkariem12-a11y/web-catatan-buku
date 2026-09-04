@@ -174,7 +174,7 @@ with app.app_context():
                         db.session.add(Tema(id=t['id'], nama=t['nama']))
                 for b in data.get('buku', []):
                     if not Buku.query.get(b['id']):
-                        db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+                        db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), cover_url=b.get('cover_url'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
                 for c in data.get('catatan', []):
                     if not Catatan.query.get(c['id']):
                         db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
@@ -390,8 +390,6 @@ CSS_SHARED = """
         box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
     }
 """
-
-
 
 JS_THEME_SCRIPT = """
 <script>
@@ -643,18 +641,6 @@ HTML_INDEX = """
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function jalankanPencarianCanggih(kata) {
-    const keyword = kata.toLowerCase().trim();
-    document.querySelectorAll('.kategori-item').forEach(item => {
-        const keywords = item.getAttribute('data-keywords') || '';
-        const textContent = item.textContent.toLowerCase();
-        if (keyword === '' || keywords.includes(keyword) || textContent.includes(keyword)) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
 function filterKategori(nama) {
     document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
     document.querySelector(`[data-filter="${nama}"]`).classList.add('active');
@@ -755,17 +741,18 @@ HTML_BUKU_DETAIL = """
         </div>
     </div>
     
-    <div class="card-gold p-4 mb-4 rounded-4">
-    {% if buku.cover_url %}
-<div class="mb-3">
-    <a href="{{ buku.cover_url }}" target="_blank">
-        <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
-             style="max-width: 160px; height: auto; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); border: 2px solid #b38728; transition: transform 0.3s ease;"
-             onmouseover="this.style.transform='scale(1.05)'" 
-             onmouseout="this.style.transform='scale(1)'">
-    </a>
-</div>
-{% endif %}
+    <div class="card-gold p-4 mb-4 rounded-4 text-center">
+        <!-- 🟢 COVER BUKU PALING ATAS 🟢 -->
+        {% if buku.cover_url %}
+        <div class="mb-3">
+            <a href="{{ buku.cover_url }}" target="_blank">
+                <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+                     style="max-width: 160px; height: auto; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); border: 2px solid #b38728; transition: transform 0.3s ease;"
+                     onmouseover="this.style.transform='scale(1.05)'" 
+                     onmouseout="this.style.transform='scale(1)'">
+            </a>
+        </div>
+        {% endif %}
 
         <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-book me-1"></i> Naskah Buku</span>
         <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">{{ buku.judul.upper() }}</h2>
@@ -843,6 +830,10 @@ HTML_BUKU_DETAIL = """
                 <div class="mb-2">
                     <label class="small text-muted">Kutipan / Quote</label>
                     <textarea name="kutipan" class="form-control bg-secondary text-white" rows="2">{{ buku.kutipan or '' }}</textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="small text-muted">Link Gambar Cover (URL)</label>
+                    <input type="url" name="cover_url" class="form-control bg-secondary text-white" value="{{ buku.cover_url or '' }}" placeholder="https://i.imgur.com/...jpg">
                 </div>
               </div>
               <div class="modal-footer border-secondary">
@@ -977,10 +968,6 @@ HTML_BUKU_DETAIL = """
                         <label class="small text-muted">Isi Naskah (Markdown)</label>
                         <textarea name="isi" class="form-control bg-secondary text-white" rows="10" required>{{ cat.isi }}</textarea>
                     </div>
-                    <div class="mb-2">
-        <label class="small text-muted">Link Gambar Cover (URL)</label>
-        <input type="url" name="cover_url" class="form-control bg-secondary text-white" value="{{ buku.cover_url or '' }}" placeholder="https://i.imgur.com/...jpg">
-    </div>
                   </div>
                   <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
@@ -1122,6 +1109,7 @@ HTML_TEMA = """
             <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
             <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul"></div>
             <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan..."></textarea></div>
+            <div class="col-12"><input type="url" name="cover_url" class="form-control form-control-sm" placeholder="Link Gambar Cover (URL)..."></div>
             <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
         </form>
     </div>
@@ -1129,11 +1117,17 @@ HTML_TEMA = """
     <div class="row g-3">
         {% for buku in buku_list %}
         <div class="col-12">
-            <div class="card-gold p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <a href="/buku/{{ buku.id }}" class="text-decoration-none flex-grow-1">
-                    <h4 class="h5 mb-1 fw-bold text-warning">{{ buku.judul.upper() }}</h4>
-                    {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
-                </a>
+            <div class="card-gold p-3 rounded-4 d-flex align-items-center gap-3">
+                {% if buku.cover_url %}
+                <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+                     style="width: 75px; height: 105px; object-fit: cover; border-radius: 8px; border: 1px solid #b38728; flex-shrink: 0;">
+                {% endif %}
+                <div class="flex-grow-1">
+                    <a href="/buku/{{ buku.id }}" class="text-decoration-none">
+                        <h4 class="h5 mb-1 fw-bold text-warning">{{ buku.judul.upper() }}</h4>
+                        {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
+                    </a>
+                </div>
                 <div class="d-flex align-items-center gap-2">
                     <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
                     <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
@@ -1394,8 +1388,15 @@ def tambah_buku():
     if not session.get('is_admin'): return "Akses Ditolak", 403
     judul = request.form.get('judul', '').strip()
     tema_id = request.form.get('tema_id')
+    cover_url = request.form.get('cover_url', '').strip()
     if judul and tema_id:
-        db.session.add(Buku(judul=judul, subjudul=request.form.get('subjudul', '').strip(), tema_id=int(tema_id), kutipan=request.form.get('kutipan', '').strip()))
+        db.session.add(Buku(
+            judul=judul, 
+            subjudul=request.form.get('subjudul', '').strip(), 
+            tema_id=int(tema_id), 
+            kutipan=request.form.get('kutipan', '').strip(),
+            cover_url=cover_url
+        ))
         db.session.commit()
     return redirect(f'/tema/{tema_id}')
 
@@ -1671,7 +1672,7 @@ def backup_db():
     if not session.get('is_admin'): return "Akses Ditolak", 403
     data = {
         "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
-        "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
+        "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "cover_url": b.cover_url, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
         "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan, "file_audio": c.file_audio} for c in Catatan.query.all()],
         "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
     }
@@ -1690,7 +1691,7 @@ def restore_db():
                     db.session.add(Tema(id=t['id'], nama=t['nama']))
             for b in data.get('buku', []):
                 if not Buku.query.get(b['id']):
-                    db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+                    db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), cover_url=b.get('cover_url'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
             for c in data.get('catatan', []):
                 if not Catatan.query.get(c['id']):
                     db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
