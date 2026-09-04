@@ -104,6 +104,7 @@ class Buku(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     judul = db.Column(db.String(200), nullable=False)
     subjudul = db.Column(db.String(250), nullable=True)
+    cover_url = db.Column(db.Text, nullable=True)
     kutipan = db.Column(db.Text, nullable=True)
     tema_id = db.Column(db.Integer, db.ForeignKey('tema.id'), nullable=False)
     status = db.Column(db.String(20), default='selesai')
