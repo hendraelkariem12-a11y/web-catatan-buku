@@ -292,14 +292,14 @@ CSS_SHARED = """
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 170px; }
     
-    /* STYLING KOTAK KODE MARKDOWN */
+    /* STYLING KOTAK KODE MARKDOWN & GAMBAR */
     .markdown-body pre {
-        background-color: #0f172a !important; /* Warna latar belakang kotak kode (Dark) */
-        color: #38bdf8 !important;            /* Warna teks kode (Cyan/Light Blue) */
+        background-color: #0f172a !important;
+        color: #38bdf8 !important;
         padding: 14px 18px !important;
         border-radius: 12px !important;
         border: 1px solid #334155 !important;
-        overflow-x: auto !important;          /* Scroll horizontal jika kode panjang */
+        overflow-x: auto !important;
         margin: 15px 0 !important;
         box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
     }
@@ -742,7 +742,7 @@ HTML_BUKU_DETAIL = """
     </div>
     
     <div class="card-gold p-4 mb-4 rounded-4 text-center">
-        <!-- 🟢 COVER BUKU PALING ATAS 🟢 -->
+        <!-- COVER BUKU PALING ATAS -->
         {% if buku.cover_url %}
         <div class="mb-3">
             <a href="{{ buku.cover_url }}" target="_blank">
@@ -858,7 +858,7 @@ HTML_BUKU_DETAIL = """
             <div class="mb-2">
                 <input type="url" name="file_audio" class="form-control form-control-sm" placeholder="🎙️ Paste Link Google Drive Audio (Opsional)...">
             </div>
-            <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung)..." required></textarea></div>
+            <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung, contoh gambar: ![nama](link_gambar))..." required></textarea></div>
             <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Bab</button>
         </form>
     </div>
@@ -1079,9 +1079,87 @@ function resetTombolTTS(id) {
 """
 
 HTML_FAVORIT = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Favorit</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-star me-2"></i> Koleksi Favorit</h4><div class="d-flex flex-column gap-3">{% for c in catatan_favorit %}<div class="card-gold p-4"><div class="d-flex justify-content-between align-items-center mb-2"><span class="badge bg-warning text-dark">Buku ID: {{ c.buku_id }}</span><a href="/buku/{{ c.buku_id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Buku &rarr;</a></div><h5 class="fw-bold mb-2">{{ c.judul_bab }}</h5><p class="small text-muted mb-0">{{ c.isi[:140] }}...</p></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted mb-0">Belum ada bab favorit.</p></div>{% endfor %}</div></div></body></html>"""
-HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
-HTML_ESAI_PENULIS = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Esai</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:760px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><div class="card-gold p-4 rounded-4 mb-4"><h2 class="h3 fw-bold text-warning mb-1">✍️ Jurnal & Esai Bebas</h2></div>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/tambah-esai" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul..." required><input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori..."><textarea name="isi" class="form-control form-control-sm mb-2" rows="4" placeholder="Isi..." required></textarea><button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Terbitkan</button></form></div>{% endif %}{% for e in esai_list %}<div class="card-gold p-4 mb-3"><div class="d-flex justify-content-between mb-2"><span class="badge bg-info text-dark">{{ e.kategori }}</span><a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i> PDF</a></div><h4 class="text-warning fw-bold mb-3">{{ e.judul }}</h4><div class="markdown-body" id="content-esai-{{ e.id }}"></div><textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea></div>{% endfor %}</div><script>document.addEventListener("DOMContentLoaded", function(){marked.use({ gfm: true, breaks: true });{% for e in esai_list %}document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(document.getElementById('raw-esai-{{ e.id }}').value);{% endfor %});</script></body></html>"""
 
+HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
+
+# PERBAIKAN ESAI BISA DIBUKA LANGSUNG DI WEB (PERBAIKAN GAMBAR 1)
+HTML_ESAI_PENULIS = """<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jurnal & Esai Bebas - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-4" style="max-width:760px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4 fw-bold rounded-pill px-3">&larr; Kembali ke Utama</a>
+    <div class="card-gold p-4 rounded-4 mb-4">
+        <h2 class="h3 fw-bold text-warning mb-1" style="font-family:'Cinzel',serif;">✍️ Jurnal & Esai Bebas</h2>
+        <p class="text-muted small mb-0">Catatan perenungan, pemikiran acak, dan tulisan lepas.</p>
+    </div>
+
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai / Refleksi Baru</h6>
+        <form action="/tambah-esai" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul Esai..." required>
+            <input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori (misal: Rangkuman YouTube, Refleksi, Dll)...">
+            <textarea name="isi" class="form-control form-control-sm mb-2" rows="5" placeholder="Tulis naskah esai di sini (Markdown didukung)..." required></textarea>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold text-dark">Terbitkan Esai</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% for e in esai_list %}
+    <div class="card-gold p-4 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <span class="badge bg-info text-dark fw-bold">{{ e.kategori }}</span>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill fw-bold" data-bs-toggle="collapse" data-bs-target="#esai-body-{{ e.id }}">
+                    <i class="fa-solid fa-book-open me-1"></i> Baca Esai
+                </button>
+                <a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-danger btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+            </div>
+        </div>
+        <h4 class="text-warning fw-bold mb-3" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#esai-body-{{ e.id }}">
+            {{ e.judul }}
+        </h4>
+        
+        <div class="collapse show" id="esai-body-{{ e.id }}">
+            <hr class="border-secondary opacity-25">
+            <div class="markdown-body text-main" id="content-esai-{{ e.id }}"></div>
+            <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
+            <div class="text-muted small mt-3">Ditulis: {{ e.dibuat_pada.strftime('%d %b %Y') if e.dibuat_pada else '-' }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 card-gold rounded-4">
+        <p class="text-muted mb-0">Belum ada esai atau refleksi yang ditulis.</p>
+    </div>
+    {% endfor %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for e in esai_list %}
+    var rawText = document.getElementById('raw-esai-{{ e.id }}').value;
+    document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+</script>
+</body>
+</html>
+"""
+
+# PERBAIKAN TAMPILAN COVER & JUDUL BUKU TIDAK TERHIMPIT (PERBAIKAN GAMBAR 2)
 HTML_TEMA = """
 <!DOCTYPE html>
 <html lang="id">
@@ -1099,10 +1177,11 @@ HTML_TEMA = """
 <div class="container py-5" style="max-width:850px;">
     <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali</a>
     <div class="card-gold p-4 mb-4 rounded-4">
-        <h2 class="h3 fw-bold mb-1">Tema: {{ tema.nama }}</h2>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{ tema.nama }}</h2>
     </div>
     {% if is_admin %}
     <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-plus me-1"></i> Tambah Buku Baru di Tema Ini</h6>
         <form action="/tambah-buku" method="POST" class="row g-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="tema_id" value="{{ tema.id }}">
@@ -1114,30 +1193,42 @@ HTML_TEMA = """
         </form>
     </div>
     {% endif %}
+
     <div class="row g-3">
         {% for buku in buku_list %}
         <div class="col-12">
-            <div class="card-gold p-3 rounded-4 d-flex align-items-center gap-3">
-                {% if buku.cover_url %}
-                <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
-                     style="width: 75px; height: 105px; object-fit: cover; border-radius: 8px; border: 1px solid #b38728; flex-shrink: 0;">
-                {% endif %}
-                <div class="flex-grow-1">
-                    <a href="/buku/{{ buku.id }}" class="text-decoration-none">
-                        <h4 class="h5 mb-1 fw-bold text-warning">{{ buku.judul.upper() }}</h4>
-                        {% if buku.subjudul %}<p class="text-muted small mb-0">{{ buku.subjudul }}</p>{% endif %}
-                    </a>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
-                    <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
-                    {% if is_admin %}
-                    <button type="button" class="btn btn-outline-info btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#pindahTemaModal{{ buku.id }}" title="Pindah Tema"><i class="fa-solid fa-folder-tree"></i></button>
-                    <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus buku ini beserta seluruh isinya?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="Hapus Buku"><i class="fa-solid fa-trash"></i></button>
-                    </form>
+            <div class="card-gold p-4 rounded-4">
+                <div class="row align-items-center g-3">
+                    {% if buku.cover_url %}
+                    <div class="col-12 col-sm-auto text-center">
+                        <a href="/buku/{{ buku.id }}">
+                            <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+                                 style="width: 100px; height: 145px; object-fit: cover; border-radius: 10px; border: 2px solid #b38728; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: inline-block;">
+                        </a>
+                    </div>
                     {% endif %}
+                    
+                    <div class="col">
+                        <a href="/buku/{{ buku.id }}" class="text-decoration-none">
+                            <h4 class="h5 mb-2 fw-bold text-warning" style="word-break: break-word; line-height: 1.4;">{{ buku.judul.upper() }}</h4>
+                        </a>
+                        {% if buku.subjudul %}
+                            <p class="text-muted small mb-2" style="word-break: break-word;">{{ buku.subjudul }}</p>
+                        {% endif %}
+                        
+                        <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+                            <a href="/buku/{{ buku.id }}" class="btn btn-warning btn-sm text-dark rounded-pill fw-bold px-3"><i class="fa-solid fa-book-open me-1"></i> Buka Buku</a>
+                            <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
+                            <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                            {% if is_admin %}
+                            <button type="button" class="btn btn-outline-info btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#pindahTemaModal{{ buku.id }}" title="Pindah Tema"><i class="fa-solid fa-folder-tree"></i></button>
+                            <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="d-inline mb-0" onsubmit="return confirm('Hapus buku ini beserta seluruh isinya?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="Hapus Buku"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1169,6 +1260,10 @@ HTML_TEMA = """
           </div>
         </div>
         {% endif %}
+        {% else %}
+        <div class="text-center py-5 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada buku dalam tema ini.</p>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -1239,7 +1334,7 @@ HTML_PENULIS = """
         <p class="small fw-bold mb-1">Misi:</p>
         <ul class="small text-muted ps-3 mb-0">
             <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
-            <li>Mendokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
+            <li>Memdokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
             <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
         </ul>
     </div>
@@ -1580,7 +1675,7 @@ def export_buku_epub(buku_id):
     filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
     return send_file(buffer, as_attachment=True, download_name=f"{filename}.epub", mimetype='application/epub+zip')
 
-# Prioritas Tinggi: Ekspor PDF Terproteksi Anti-Crash HTML
+# Ekspor PDF Buku Terproteksi Anti-Crash
 @app.route('/export-buku-pdf/<int:buku_id>')
 def export_buku_pdf(buku_id):
     buku = Buku.query.get_or_404(buku_id)
