@@ -135,6 +135,16 @@ class EsaiPenulis(db.Model):
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     favorit = db.Column(db.Boolean, default=False)
 
+# MODEL BARU FITUR JURNAL
+class Jurnal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    judul = db.Column(db.String(250), nullable=False)
+    penulis = db.Column(db.String(200), nullable=True)
+    kategori = db.Column(db.String(100), default="Umum")
+    file_pdf = db.Column(db.String(250), nullable=True)
+    poin_penting = db.Column(db.Text, nullable=False)
+    tanggal_baca = db.Column(db.DateTime, default=datetime.utcnow)
+
 class TongSampah(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tipe = db.Column(db.String(20), nullable=False)
@@ -599,6 +609,25 @@ HTML_INDEX = """
 
     <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
     <div class="row g-3" id="daftar-kategori">
+        <!-- FITUR BARU: MENU KOLEKSI E-JURNAL -->
+        <div class="col-12 kategori-item" data-nama="Jurnal & Riset" data-keywords="jurnal riset e-jurnal pdf">
+            <a href="/jurnal" class="text-decoration-none">
+                <div class="card-gold p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-graduation-cap fs-4"></i></div>
+                            <div>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">Pendataan Bulanan</span>
+                                <h4 class="h5 mb-1 fw-bold">📖 Koleksi E-Jurnal & Riset <span class="badge-count">{{ jumlah_jurnal }}</span></h4>
+                                <p class="text-muted small mb-0">Arsip jurnal pilihan beserta poin penting dari AI.</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
         <div class="col-12 kategori-item" data-nama="Jurnal & Esai" data-keywords="jurnal esai refleksi harian">
             <a href="/catatan-penulis" class="text-decoration-none">
                 <div class="card-gold p-4">
@@ -653,6 +682,120 @@ function filterKategori(nama) {
 </html>
 """
 
+# HTML TEMPLATE KOLEKSI JURNAL BARU
+HTML_JURNAL = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koleksi E-Jurnal & Riset</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali ke Utama</a>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="badge bg-warning text-dark fw-bold mb-1">PROGRAM BULANAN MEMBACA</span>
+                <h2 class="h3 fw-bold mb-0" style="font-family:'Cinzel',serif;">📚 Koleksi E-Jurnal & Riset</h2>
+            </div>
+            <span class="badge bg-dark border border-warning px-3 py-2 fs-6 rounded-pill text-warning">Total: {{ jurnal_list|length }} Jurnal</span>
+        </div>
+    </div>
+
+    {% if is_admin %}
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h5 class="fw-bold text-success mb-3"><i class="fa-solid fa-file-circle-plus me-1"></i> Tambah Jurnal & Rangkuman AI</h5>
+        <form action="/tambah-jurnal" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2 mb-2">
+                <div class="col-md-7">
+                    <input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Jurnal..." required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="penulis" class="form-control form-control-sm" placeholder="Penulis / Peneliti...">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <input type="text" name="kategori" class="form-control form-control-sm" placeholder="Kategori (cth: Ekonomi, IT)">
+                </div>
+                <div class="col-md-8">
+                    <input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="small text-muted mb-1">Poin-poin Penting & Ringkasan (Hasil Rangkuman AI):</label>
+                <textarea name="poin_penting" class="form-control form-control-sm" rows="6" placeholder="Paste poin penting dari AI di sini (Format Markdown otomatis teratur)..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan ke Koleksi Jurnal</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        {% for j in jurnal_list %}
+        <div class="col-12">
+            <div class="card-gold p-4 rounded-4">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <span class="badge bg-info text-dark fw-bold mb-2 me-1">{{ j.kategori }}</span>
+                        {% if j.penulis %}<small class="text-muted"><i class="fa-solid fa-user-pen me-1"></i>{{ j.penulis }}</small>{% endif %}
+                        <h4 class="h5 fw-bold text-warning mb-1" style="word-break: break-word;">{{ j.judul }}</h4>
+                    </div>
+                    {% if is_admin %}
+                    <form action="/hapus-jurnal/{{ j.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus jurnal ini?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <hr class="border-secondary opacity-25 my-2">
+
+                <div class="markdown-body text-main my-3" id="content-jurnal-{{ j.id }}"></div>
+                <textarea id="raw-jurnal-{{ j.id }}" style="display:none;">{{ j.poin_penting }}</textarea>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top border-secondary border-opacity-10">
+                    <small class="text-muted"><i class="fa-solid fa-calendar-day me-1"></i>Dibaca: {{ j.tanggal_baca.strftime('%d %b %Y') }}</small>
+                    {% if j.file_pdf %}
+                    <a href="/baca-pdf?nama={{ j.file_pdf }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Buka File PDF
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada jurnal yang didata bulan ini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for j in jurnal_list %}
+    var rawText = document.getElementById('raw-jurnal-{{ j.id }}').value;
+    document.getElementById('content-jurnal-{{ j.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+</script>
+</body>
+</html>
+"""
+
 HTML_HASIL_CARI = """
 <!DOCTYPE html>
 <html lang="id">
@@ -671,8 +814,20 @@ HTML_HASIL_CARI = """
     
     <div class="card-gold p-4 mb-4 rounded-4">
         <h4 class="fw-bold mb-2">🔍 Hasil Pencarian: "<span class="text-warning">{{ query }}</span>"</h4>
-        <p class="text-muted small mb-0">Ditemukan {{ hasil_catatan|length }} bab buku dan {{ hasil_esai|length }} esai.</p>
+        <p class="text-muted small mb-0">Ditemukan {{ hasil_catatan|length }} bab buku, {{ hasil_jurnal|length }} e-jurnal, dan {{ hasil_esai|length }} esai.</p>
     </div>
+
+    <h5 class="fw-bold text-warning mb-3">Koleksi E-Jurnal & Riset</h5>
+    {% for j in hasil_jurnal %}
+    <div class="card-gold p-3 mb-3">
+        <span class="badge bg-info text-dark mb-1">{{ j.kategori }}</span>
+        <h5 class="fw-bold mb-1">{{ j.judul }}</h5>
+        <p class="small text-muted mb-2">{{ j.poin_penting[:180] }}...</p>
+        <a href="/jurnal" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Koleksi Jurnal &rarr;</a>
+    </div>
+    {% else %}
+    <p class="text-muted small mb-4">Tidak ada jurnal yang cocok.</p>
+    {% endfor %}
 
     <h5 class="fw-bold text-warning mb-3">Bab Buku</h5>
     {% for c in hasil_catatan %}
@@ -1082,7 +1237,6 @@ HTML_FAVORIT = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><ti
 
 HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
 
-# PERBAIKAN ESAI BISA DIBUKA LANGSUNG DI WEB (PERBAIKAN GAMBAR 1)
 HTML_ESAI_PENULIS = """<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1159,7 +1313,6 @@ document.addEventListener("DOMContentLoaded", function(){
 </html>
 """
 
-# PERBAIKAN TAMPILAN COVER & JUDUL BUKU TIDAK TERHIMPIT (PERBAIKAN GAMBAR 2)
 HTML_TEMA = """
 <!DOCTYPE html>
 <html lang="id">
@@ -1366,14 +1519,16 @@ def index():
     is_admin = session.get('is_admin')
     tema_list = Tema.query.order_by(Tema.id.asc()).all()
     jumlah_esai = EsaiPenulis.query.count()
+    jumlah_jurnal = Jurnal.query.count()
     penanda_list = PenandaBaca.query.order_by(PenandaBaca.waktu_baca.desc()).limit(1).all()
-    return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai, penanda_list=penanda_list)
+    return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai, jumlah_jurnal=jumlah_jurnal, penanda_list=penanda_list)
 
 @app.route('/cari')
 def cari_naskah():
     query = request.args.get('q', '').strip()
     hasil_catatan = []
     hasil_esai = []
+    hasil_jurnal = []
 
     if query:
         hasil_catatan = Catatan.query.filter(
@@ -1386,7 +1541,59 @@ def cari_naskah():
             (EsaiPenulis.isi.ilike(f'%{query}%'))
         ).all()
 
-    return render_template_string(HTML_HASIL_CARI, query=query, hasil_catatan=hasil_catatan, hasil_esai=hasil_esai)
+        hasil_jurnal = Jurnal.query.filter(
+            (Jurnal.judul.ilike(f'%{query}%')) | 
+            (Jurnal.penulis.ilike(f'%{query}%')) |
+            (Jurnal.poin_penting.ilike(f'%{query}%'))
+        ).all()
+
+    return render_template_string(HTML_HASIL_CARI, query=query, hasil_catatan=hasil_catatan, hasil_esai=hasil_esai, hasil_jurnal=hasil_jurnal)
+
+# ==================================================
+# ROUTE BARU KOLEKSI E-JURNAL
+# ==================================================
+@app.route('/jurnal')
+def halaman_jurnal():
+    jurnal_list = Jurnal.query.order_by(Jurnal.tanggal_baca.desc()).all()
+    return render_template_string(HTML_JURNAL, jurnal_list=jurnal_list, is_admin=session.get('is_admin'))
+
+@app.route('/tambah-jurnal', methods=['POST'])
+def tambah_jurnal():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    judul = request.form.get('judul', '').strip()
+    penulis = request.form.get('penulis', '').strip()
+    kategori = request.form.get('kategori', 'Umum').strip()
+    poin_penting = request.form.get('poin_penting', '').strip()
+    
+    filename = None
+    file = request.files.get('file_pdf')
+    if file and file.filename.endswith('.pdf'):
+        filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+        file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+
+    if judul and poin_penting:
+        db.session.add(Jurnal(
+            judul=judul,
+            penulis=penulis,
+            kategori=kategori if kategori else 'Umum',
+            poin_penting=poin_penting,
+            file_pdf=filename
+        ))
+        db.session.commit()
+        catat_log("TAMBAH JURNAL", f"Mendata jurnal: {judul}")
+
+    return redirect('/jurnal')
+
+@app.route('/hapus-jurnal/<int:jurnal_id>', methods=['POST'])
+def hapus_jurnal(jurnal_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    jurnal = Jurnal.query.get(jurnal_id)
+    if jurnal:
+        masukkan_sampah('jurnal', {'judul': jurnal.judul, 'penulis': jurnal.penulis})
+        db.session.delete(jurnal)
+        db.session.commit()
+        catat_log("HAPUS JURNAL", f"Menghapus jurnal ID: {jurnal_id}")
+    return redirect('/jurnal')
 
 @app.route('/baca-pdf')
 def baca_pdf():
@@ -1769,7 +1976,8 @@ def backup_db():
         "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
         "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "cover_url": b.cover_url, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
         "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan, "file_audio": c.file_audio} for c in Catatan.query.all()],
-        "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()]
+        "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()],
+        "jurnal": [{"id": j.id, "judul": j.judul, "penulis": j.penulis, "kategori": j.kategori, "poin_penting": j.poin_penting, "file_pdf": j.file_pdf} for j in Jurnal.query.all()]
     }
     return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
@@ -1793,6 +2001,9 @@ def restore_db():
             for e in data.get('esai', []):
                 if not EsaiPenulis.query.get(e['id']):
                     db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+            for j in data.get('jurnal', []):
+                if not Jurnal.query.get(j['id']):
+                    db.session.add(Jurnal(id=j['id'], judul=j['judul'], penulis=j.get('penulis'), kategori=j.get('kategori', 'Umum'), poin_penting=j['poin_penting'], file_pdf=j.get('file_pdf')))
             db.session.commit()
             catat_log("RESTORE DATABASE", "Melakukan restore data dari file JSON")
             app.logger.info("Database berhasil di-restore dari file JSON.")
