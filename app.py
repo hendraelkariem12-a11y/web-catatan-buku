@@ -7,7 +7,7 @@ from collections import defaultdict
 from io import BytesIO
 from html import escape
 from datetime import datetime
-from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory, url_for, flash
+from flask import Flask, request, redirect, render_template_string, session, Response, send_file, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -24,7 +24,7 @@ app = Flask(__name__)
 app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
 
 # ==================================================
-# KONFIGURASI KEAMANAN CSRF & RATE LIMITING
+# KONFIGURASI KEAMANAN CSRF
 # ==================================================
 csrf = CSRFProtect(app)
 
@@ -68,12 +68,12 @@ UPLOAD_PDF_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'up
 os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 
 # ==================================================
-# KONFIGURASI DATABASE SUPABASE POSTGRESQL
+# KONFIGURASI DATABASE (SUPABASE POSTGRESQL)
 # ==================================================
 DEFAULT_SUPABASE_URL = "postgresql://postgres.mlzpbbvtufjvkpyddqvz:Sindanglaut74801@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres"
 DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_SUPABASE_URL)
 
-# Supabase terkadang memberikan URI postgres://, SQLAlchemy membutuhkan postgresql://
+# Supabase memberikan URI berawalan 'postgres://', SQLAlchemy butuh 'postgresql://'
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -92,7 +92,6 @@ ADMIN_PASS_HASH = generate_password_hash("suhendra123")
 # MODEL DATABASE
 # ==================================================
 class Tema(db.Model):
-    __tablename__ = 'tema'
     id = db.Column(db.Integer, primary_key=True)
     nama = db.Column(db.String(100), nullable=False)
     dibuat_pada = db.Column(db.DateTime, default=datetime.utcnow)
@@ -100,7 +99,6 @@ class Tema(db.Model):
     buku_list = db.relationship('Buku', backref='tema', lazy=True, cascade="all, delete-orphan")
 
 class Buku(db.Model):
-    __tablename__ = 'buku'
     id = db.Column(db.Integer, primary_key=True)
     judul = db.Column(db.String(200), nullable=False)
     subjudul = db.Column(db.String(250), nullable=True)
@@ -113,7 +111,6 @@ class Buku(db.Model):
     catatan_list = db.relationship('Catatan', backref='buku', lazy=True, cascade="all, delete-orphan")
 
 class Catatan(db.Model):
-    __tablename__ = 'catatan'
     id = db.Column(db.Integer, primary_key=True)
     bagian = db.Column(db.String(100), nullable=True)
     judul_bab = db.Column(db.String(200), nullable=False)
@@ -127,7 +124,6 @@ class Catatan(db.Model):
     tag = db.Column(db.String(200), nullable=True)
 
 class EsaiPenulis(db.Model):
-    __tablename__ = 'esai_penulis'
     id = db.Column(db.Integer, primary_key=True)
     judul = db.Column(db.String(200), nullable=False)
     kategori = db.Column(db.String(100), default="Refleksi Harian")
@@ -137,8 +133,8 @@ class EsaiPenulis(db.Model):
     diupdate_pada = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     favorit = db.Column(db.Boolean, default=False)
 
+# MODEL BARU FITUR JURNAL
 class Jurnal(db.Model):
-    __tablename__ = 'jurnal'
     id = db.Column(db.Integer, primary_key=True)
     judul = db.Column(db.String(250), nullable=False)
     penulis = db.Column(db.String(200), nullable=True)
@@ -148,21 +144,18 @@ class Jurnal(db.Model):
     tanggal_baca = db.Column(db.DateTime, default=datetime.utcnow)
 
 class TongSampah(db.Model):
-    __tablename__ = 'tong_sampah'
     id = db.Column(db.Integer, primary_key=True)
     tipe = db.Column(db.String(20), nullable=False)
     data_json = db.Column(db.Text, nullable=False)
     dihapus_pada = db.Column(db.DateTime, default=datetime.utcnow)
 
 class LogAktivitas(db.Model):
-    __tablename__ = 'log_aktivitas'
     id = db.Column(db.Integer, primary_key=True)
     aksi = db.Column(db.String(200), nullable=False)
     keterangan = db.Column(db.Text, nullable=True)
     waktu = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PenandaBaca(db.Model):
-    __tablename__ = 'penanda_baca'
     id = db.Column(db.Integer, primary_key=True)
     buku_id = db.Column(db.Integer, db.ForeignKey('buku.id'), nullable=False)
     catatan_id = db.Column(db.Integer, db.ForeignKey('catatan.id'), nullable=False)
@@ -197,7 +190,7 @@ with app.app_context():
                     if not EsaiPenulis.query.get(e['id']):
                         db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
                 db.session.commit()
-                app.logger.info("Auto-restore database ke Supabase dari file backup_karya.json berhasil dilakukan.")
+                app.logger.info("Auto-restore database dari file backup_karya.json berhasil dilakukan.")
         except Exception as err:
             db.session.rollback()
             app.logger.error(f"Gagal melakukan auto-restore: {str(err)}")
@@ -205,20 +198,7 @@ with app.app_context():
     app.logger.info(f"Database berhasil diinisialisasi menggunakan: {database_info}")
 
 # ==================================================
-# HELPER SYSTEM LOG & TRASH
-# ==================================================
-def masukkan_sampah(tipe, data_dict):
-    item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
-    db.session.add(item)
-    db.session.commit()
-
-def catat_log(aksi, keterangan=""):
-    log_baru = LogAktivitas(aksi=aksi, keterangan=keterangan)
-    db.session.add(log_baru)
-    db.session.commit()
-
-# ==================================================
-# ROUTE FILE MEDIA & STATIC
+# ROUTE FILE MEDIA & STATIC (LOGO & MANIFEST PWA)
 # ==================================================
 @app.route('/profile.jpg')
 def serve_profile():
@@ -231,6 +211,16 @@ def serve_logo():
 @app.route('/manifest.json')
 def serve_manifest():
     return send_from_directory('static', 'manifest.json')
+
+def masukkan_sampah(tipe, data_dict):
+    item = TongSampah(tipe=tipe, data_json=json.dumps(data_dict, ensure_ascii=False))
+    db.session.add(item)
+    db.session.commit()
+
+def catat_log(aksi, keterangan=""):
+    log_baru = LogAktivitas(aksi=aksi, keterangan=keterangan)
+    db.session.add(log_baru)
+    db.session.commit()
 
 @app.errorhandler(404)
 def halaman_tidak_ditemukan(e):
@@ -265,9 +255,6 @@ def kesalahan_server(e):
     </html>
     """, 500
 
-# ==================================================
-# TEMPLATE CSS & JS SHARED
-# ==================================================
 CSS_SHARED = """
     :root { 
         --bg-paper: #f7f4ef; --card-paper: #ffffff; --text-main: #1e293b; --text-muted: #64748b;
@@ -313,6 +300,7 @@ CSS_SHARED = """
     .note-card-badge { display: block; width: fit-content; background: rgba(56, 189, 248, 0.15); color: #38bdf8 !important; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-transform: uppercase; margin-bottom: 8px; }
     .note-card-title { color: #b38728 !important; font-size: 20px; font-weight: 800; margin-top: 4px; margin-bottom: 12px; padding-right: 170px; }
     
+    /* STYLING KOTAK KODE MARKDOWN & GAMBAR */
     .markdown-body pre {
         background-color: #0f172a !important;
         color: #38bdf8 !important;
@@ -349,6 +337,7 @@ CSS_SHARED = """
 
     .section-header-card { background: rgba(179, 135, 40, 0.12); border-left: 5px solid #b38728; border-radius: 10px; padding: 12px 18px; margin-top: 30px; margin-bottom: 15px; font-family: 'Cinzel', serif; font-weight: 800; color: #b38728 !important; font-size: 16px; text-transform: uppercase; }
 
+    /* AUDIO PLAYER BOX */
     .audio-player-box {
         background: rgba(179, 135, 40, 0.08);
         border: 1px solid var(--border-color);
@@ -358,6 +347,7 @@ CSS_SHARED = """
         margin-bottom: 15px;
     }
 
+    /* SPLASH SCREEN & NATIVE HEADER APP */
     #splash-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
         background: radial-gradient(circle at center, #1c2541 0%, #0b132b 100%);
@@ -368,13 +358,44 @@ CSS_SHARED = """
     .splash-container { text-align: center; animation: zoomInSplash 0.8s ease-out; }
     .splash-title { font-family: 'Cinzel', serif; font-weight: 800; font-size: 22px; color: #fcf6ba !important; letter-spacing: 2px; margin-bottom: 5px; }
     .splash-subtitle { font-size: 12px; color: #94a3b8 !important; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+    @keyframes logoGlow {
+        0% { transform: scale(0.96); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
+        100% { transform: scale(1.04); box-shadow: 0 0 35px rgba(212, 175, 55, 0.7); }
+    }
     @keyframes zoomInSplash { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
 
+    /* PEMBATAS UKURAN LOGO HEADER & SPLASH SCREEN */
     .app-header-logo {
-        width: 100px !important; height: 100px !important;
-        border-radius: 50% !important; object-fit: cover !important;
-        border: 3px solid #b38728; padding: 3px; background: var(--card-paper);
-        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25); margin: 0 auto 15px auto; display: block;
+        width: 100px !important;
+        height: 100px !important;
+        max-width: 100px !important;
+        max-height: 100px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 3px solid #b38728;
+        padding: 3px;
+        background: var(--card-paper);
+        box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
+        margin: 0 auto 15px auto;
+        display: block;
+    }
+
+    .splash-logo-wrapper {
+        position: relative;
+        width: 110px !important;
+        height: 110px !important;
+        margin: 0 auto 20px auto;
+    }
+
+    .splash-logo-img {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 110px !important;
+        max-height: 110px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 3px solid #b38728;
+        box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
     }
 """
 
@@ -393,14 +414,18 @@ JS_THEME_SCRIPT = """
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
             const scrolled = (winScroll / height) * 100;
             const progressBar = document.getElementById("reading-progress");
-            if (progressBar) progressBar.style.width = scrolled + "%";
+            if (progressBar) {
+                progressBar.style.width = scrolled + "%";
+            }
         });
     });
 
     window.addEventListener('load', function() {
         const splash = document.getElementById('splash-screen');
         if (splash) {
-            setTimeout(function() { splash.classList.add('hidden'); }, 1200);
+            setTimeout(function() {
+                splash.classList.add('hidden');
+            }, 1200);
         }
     });
 
@@ -423,8 +448,11 @@ JS_THEME_SCRIPT = """
         const btn = document.getElementById('btnScrollTop');
         if (!btn) return;
         window.addEventListener('scroll', function() {
-            if (window.pageYOffset > 300) btn.classList.add('show');
-            else btn.classList.remove('show');
+            if (window.pageYOffset > 300) {
+                btn.classList.add('show');
+            } else {
+                btn.classList.remove('show');
+            }
         });
     }
 
@@ -435,23 +463,30 @@ JS_THEME_SCRIPT = """
     });
 
     function manualInstallGuide() {
-        if (deferredPrompt) deferredPrompt.prompt();
-        else alert("Untuk menginstal aplikasi PWA di HP Anda:\\n\\n1. Ketuk titik tiga (⋮) di pojok kanan atas Chrome.\\n2. Pilih 'Tambahkan ke Layar Utama' / 'Instal Aplikasi'.");
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+        } else {
+            alert("Untuk menginstal aplikasi PWA di HP Anda:\\n\\n1. Ketuk titik tiga (⋮) di pojok kanan atas Chrome.\\n2. Pilih 'Tambahkan ke Layar Utama' / 'Instal Aplikasi'.");
+        }
     }
 </script>
 """
 
-# ==================================================
-# TEMPLATE HTML KODE UTUH
-# ==================================================
-HTML_INDEX = """<!DOCTYPE html>
+HTML_INDEX = """
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pustaka Karya & Catatan Dede Suhendra</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>Ruang Literasi Hendra - Dede Suhendra</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#b38728">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/logo.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>""" + CSS_SHARED + """</style>
     """ + JS_THEME_SCRIPT + """
@@ -459,8 +494,12 @@ HTML_INDEX = """<!DOCTYPE html>
 <body>
 <div id="splash-screen">
     <div class="splash-container">
-        <h1 class="splash-title">PUSTAKA KARYA</h1>
-        <p class="splash-subtitle">DEDE SUHENDRA</p>
+        <div class="splash-logo-wrapper">
+            <img src="/static/logo.png" class="splash-logo-img" alt="Ruang Literasi Hendra">
+        </div>
+        <div class="splash-title">RUANG LITERASI HENDRA</div>
+        <div class="splash-subtitle mb-3">Koleksi Karya & Refleksi</div>
+        <div class="spinner-border text-warning spinner-border-sm" role="status"></div>
     </div>
 </div>
 
@@ -468,94 +507,930 @@ HTML_INDEX = """<!DOCTYPE html>
     <i class="fa-solid fa-moon" id="icon-mode"></i>
 </button>
 
-<div class="container py-5" style="max-width: 900px;">
-    <div class="text-center mb-4">
-        <img src="/logo.png" onerror="this.src='/profile.jpg'" class="app-header-logo" alt="Logo">
-        <span class="top-badge mb-2 d-inline-block"><i class="fa-solid fa-gem me-1"></i> Cloud Pustaka Supabase</span>
-        <h1 class="header-title display-6">Pustaka Karya & Catatan</h1>
-        <p class="text-muted small">Dokumentasi Pemikiran, Riset & Karya Tulis Dede Suhendra</p>
+<a href="#" class="btn-to-top" id="btnScrollTop" title="Kembali ke Atas"><i class="fa-solid fa-arrow-up"></i></a>
+
+<div class="container py-5" style="max-width:850px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a href="/penulis" class="btn btn-custom-outline rounded-pill btn-sm px-3 fw-bold"><i class="fa-solid fa-user-tie me-1"></i> Profil Penulis</a>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a href="/favorit" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-star me-1 text-warning"></i> Favorit</a>
+            <a href="/baca-pdf" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-book-open me-1 text-danger"></i> PDF Reader</a>
+            <a href="/statistik" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-chart-simple me-1 text-info"></i> Statistik</a>
+            <a href="/tong-sampah" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-trash-can me-1 text-secondary"></i> Tong Sampah</a>
+            {% if is_admin %}
+                <a href="/riwayat-log" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-list-check me-1 text-warning"></i> Log</a>
+                <a href="/backup" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-download me-1 text-primary"></i> Backup</a>
+                <button type="button" class="btn btn-custom-outline rounded-pill btn-sm fw-bold text-success" data-bs-toggle="modal" data-bs-target="#restoreModal"><i class="fa-solid fa-upload me-1"></i> Restore</button>
+                <a href="/logout" class="btn btn-warning rounded-pill btn-sm fw-bold text-dark"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
+            {% else %}
+                <a href="/login" class="btn btn-custom-outline rounded-pill btn-sm fw-bold"><i class="fa-solid fa-lock me-1"></i> Login</a>
+            {% endif %}
+        </div>
     </div>
 
-    <!-- Search Box -->
-    <form action="/cari" method="GET" class="search-box mb-4">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" name="q" class="form-control form-control-lg rounded-pill" placeholder="Cari bab, catatan, esai, atau jurnal..." required>
-    </form>
-
-    <!-- Navigation Bar -->
-    <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
-        <a href="/penulis" class="btn btn-custom-outline btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-user-pen me-1"></i> Profil Penulis</a>
-        <a href="/catatan-penulis" class="btn btn-custom-outline btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-feather me-1"></i> Esai Penulis <span class="badge-count">{{ jumlah_esai }}</span></a>
-        <a href="/jurnal" class="btn btn-custom-outline btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-book-bookmark me-1"></i> Koleksi Jurnal <span class="badge-count">{{ jumlah_jurnal }}</span></a>
-        <a href="/baca-pdf" class="btn btn-custom-outline btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-file-pdf me-1"></i> PDF Reader</a>
-        <a href="/favorit" class="btn btn-custom-outline btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-star me-1 text-warning"></i> Favorit</a>
-        {% if is_admin %}
-            <a href="/logout" class="btn btn-outline-danger btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout Admin</a>
-        {% else %}
-            <a href="/login" class="btn btn-outline-warning btn-sm rounded-pill fw-bold px-3"><i class="fa-solid fa-lock me-1"></i> Login Admin</a>
-        {% endif %}
-    </div>
-
-    <!-- Penanda Baca Aktif -->
     {% if penanda_list %}
-    <div class="card-gold p-3 mb-4 rounded-4" style="border-left:4px solid #b38728 !important;">
-        <h6 class="fw-bold text-warning mb-2 small"><i class="fa-solid fa-bookmark me-1"></i> Terakhir Dibaca:</h6>
-        <div class="d-flex flex-wrap gap-2">
-            {% for p in penanda_list %}
-                <a href="/buku/{{ p.buku_id }}#bab-{{ p.catatan_id }}" class="btn btn-sm btn-outline-warning rounded-pill small">
-                    📖 {{ p.buku.judul }} - Bab: {{ p.catatan.judul_bab }}
-                </a>
-            {% endfor %}
+    <div class="card-gold p-3 mb-4 rounded-4 border-warning">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center">
+                <div class="bg-warning text-dark rounded-circle p-2 me-3"><i class="fa-solid fa-bookmark fs-5"></i></div>
+                <div>
+                    <span class="badge bg-warning text-dark fw-bold mb-1">LANJUTKAN MEMBACA</span>
+                    <h6 class="mb-0 fw-bold">Posisi Terakhir: {{ penanda_list[0].catatan.judul_bab }}</h6>
+                    <small class="text-muted">Buku: <strong>{{ penanda_list[0].buku.judul }}</strong></small>
+                </div>
+            </div>
+            <a href="/buku/{{ penanda_list[0].buku_id }}" class="btn btn-warning btn-sm text-dark rounded-pill fw-bold px-3">
+                <i class="fa-solid fa-play me-1"></i> Lanjut Baca
+            </a>
         </div>
     </div>
     {% endif %}
 
-    <!-- Daftar Tema & Buku -->
-    <div class="row g-4">
-        {% for tema in tema_list %}
-        <div class="col-12">
-            <div class="card-gold p-4 rounded-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3 class="h5 fw-bold text-warning mb-0" style="font-family:'Cinzel',serif;"><i class="fa-solid fa-folder-open me-2"></i>{{ tema.nama }}</h3>
-                    <a href="/tema/{{ tema.id }}" class="btn btn-sm btn-custom-outline rounded-pill fw-bold px-3">Lihat Semua ({{ tema.buku_list|length }})</a>
-                </div>
-                <div class="row g-3">
-                    {% for buku in tema.buku_list[:3] %}
-                    <div class="col-md-4">
-                        <div class="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between" style="border-color:var(--border-color)!important;">
+    <div class="modal fade" id="restoreModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title fw-bold">📥 Restore Data Catatan</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <form action="/restore" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-body">
+                <p class="small text-muted">Upload file <code>backup_karya.json</code> untuk mengembalikan semua naskah.</p>
+                <input type="file" name="file_json" class="form-control bg-secondary text-white" accept=".json" required>
+              </div>
+              <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-success fw-bold">Upload & Restore</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="text-center mb-4">
+        <img src="/static/logo.png" alt="Ruang Literasi Hendra" class="app-header-logo mb-3">
+        <h1 class="header-title h2 mb-1" style="font-family:'Cinzel', serif;">RUANG LITERASI HENDRA</h1>
+        <span class="top-badge mb-2 d-inline-block">OFFICIAL DIGITAL VAULT</span>
+        <p class="text-muted small mt-1">Disusun & Dikelola oleh <strong>Dede Suhendra</strong></p>
+    </div>
+
+    <div id="pwa-install-container" class="text-center mb-4">
+        <button id="btnInstallPWA" class="btn btn-warning text-dark rounded-pill px-4 py-2 fw-bold shadow-sm" onclick="manualInstallGuide()">
+            <i class="fa-solid fa-download me-2"></i> Download / Instal Aplikasi
+        </button>
+    </div>
+
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <form action="/cari" method="GET" class="search-box mb-2">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" name="q" class="form-control form-control-sm" placeholder="Cari kata kunci dalam isi bab/naskah (Tekan Enter)...">
+        </form>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+            <span class="badge border filter-tag active" data-filter="semua" onclick="filterKategori('semua')">Semua</span>
+            {% for t in tema_list %}
+            <span class="badge border filter-tag" data-filter="{{ t.nama }}" onclick="filterKategori('{{ t.nama }}')">{{ t.nama }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-folder-plus me-1"></i> Tambah Tema Baru</h6>
+        <form action="/tambah-tema" method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-9"><input type="text" name="nama" class="form-control form-control-sm" placeholder="Misal: Psikologi..." required></div>
+            <div class="col-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Tambah</button></div>
+        </form>
+    </div>
+    {% endif %}
+
+    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Pilih Kategori Karya:</h5>
+    <div class="row g-3" id="daftar-kategori">
+        <!-- FITUR BARU: MENU KOLEKSI E-JURNAL -->
+        <div class="col-12 kategori-item" data-nama="Jurnal & Riset" data-keywords="jurnal riset e-jurnal pdf">
+            <a href="/jurnal" class="text-decoration-none">
+                <div class="card-gold p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-graduation-cap fs-4"></i></div>
                             <div>
-                                {% if buku.cover_url %}
-                                <img src="{{ buku.cover_url }}" class="img-fluid rounded mb-2 style="max-height:120px; object-fit:cover; width:100%;">
-                                {% endif %}
-                                <h4 class="h6 fw-bold mb-1"><a href="/buku/{{ buku.id }}" class="text-decoration-none text-warning">{{ buku.judul }}</a></h4>
-                                <p class="small text-muted mb-2">{{ buku.subjudul or '' }}</p>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">Pendataan Bulanan</span>
+                                <h4 class="h5 mb-1 fw-bold">📖 Koleksi E-Jurnal & Riset <span class="badge-count">{{ jumlah_jurnal }}</span></h4>
+                                <p class="text-muted small mb-0">Arsip jurnal pilihan beserta poin penting dari AI.</p>
                             </div>
-                            <a href="/buku/{{ buku.id }}" class="btn btn-sm btn-outline-warning w-100 rounded-pill mt-2">Baca Buku &rarr;</a>
                         </div>
+                        <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
                     </div>
-                    {% else %}
-                    <p class="small text-muted mb-0">Belum ada buku dalam tema ini.</p>
-                    {% endfor %}
                 </div>
+            </a>
+        </div>
+
+        <div class="col-12 kategori-item" data-nama="Jurnal & Esai" data-keywords="jurnal esai refleksi harian">
+            <a href="/catatan-penulis" class="text-decoration-none">
+                <div class="card-gold p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning text-dark rounded-circle p-3 me-3"><i class="fa-solid fa-feather-pointed fs-4"></i></div>
+                            <div>
+                                <span class="badge bg-warning text-dark fw-bold mb-1">Ruang Refleksi</span>
+                                <h4 class="h5 mb-1 fw-bold">✍️ Jurnal & Esai Bebas <span class="badge-count">{{ jumlah_esai }}</span></h4>
+                                <p class="text-muted small mb-0">Kumpulan perenungan harian & ide acak.</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-warning fs-5"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        {% for tema in tema_list %}
+        <div class="col-md-6 kategori-item" data-nama="{{ tema.nama }}" data-keywords="{{ tema.nama | lower }}">
+            <div class="card-gold p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <a href="/tema/{{ tema.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1">
+                        <i class="fa-solid fa-folder-open text-warning me-3 fs-4"></i>
+                        <h4 class="h5 mb-0 fw-bold">{{ tema.nama }} <span class="badge-count">{{ tema.buku_list|length }}</span></h4>
+                    </a>
+                    {% if is_admin %}
+                    <form action="/hapus-tema/{{ tema.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus beserta semua isinya?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-link text-danger p-0 ms-2"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+                <small class="text-muted ms-4">Dibuat: {{ tema.dibuat_pada.strftime('%d %b %Y') if tema.dibuat_pada else '-' }} &rarr;</small>
             </div>
         </div>
         {% endfor %}
     </div>
 </div>
 
-<a href="#" id="btnScrollTop" class="btn-to-top" title="Ke Atas"><i class="fa-solid fa-arrow-up"></i></a>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function filterKategori(nama) {
+    document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-filter="${nama}"]`).classList.add('active');
+    document.querySelectorAll('.kategori-item').forEach(item => {
+        item.style.display = nama === 'semua' || item.getAttribute('data-nama') === nama ? '' : 'none';
+    });
+}
+</script>
 </body>
 </html>
 """
 
-HTML_PENULIS = """<!DOCTYPE html>
+# HTML TEMPLATE KOLEKSI JURNAL BARU
+HTML_JURNAL = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koleksi E-Jurnal & Riset</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali ke Utama</a>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="badge bg-warning text-dark fw-bold mb-1">PROGRAM BULANAN MEMBACA</span>
+                <h2 class="h3 fw-bold mb-0" style="font-family:'Cinzel',serif;">📚 Koleksi E-Jurnal & Riset</h2>
+            </div>
+            <span class="badge bg-dark border border-warning px-3 py-2 fs-6 rounded-pill text-warning">Total: {{ jurnal_list|length }} Jurnal</span>
+        </div>
+    </div>
+
+    {% if is_admin %}
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h5 class="fw-bold text-success mb-3"><i class="fa-solid fa-file-circle-plus me-1"></i> Tambah Jurnal & Rangkuman AI</h5>
+        <form action="/tambah-jurnal" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2 mb-2">
+                <div class="col-md-7">
+                    <input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Jurnal..." required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="penulis" class="form-control form-control-sm" placeholder="Penulis / Peneliti...">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <input type="text" name="kategori" class="form-control form-control-sm" placeholder="Kategori (cth: Ekonomi, IT)">
+                </div>
+                <div class="col-md-8">
+                    <input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="small text-muted mb-1">Poin-poin Penting & Ringkasan (Hasil Rangkuman AI):</label>
+                <textarea name="poin_penting" class="form-control form-control-sm" rows="6" placeholder="Paste poin penting dari AI di sini (Format Markdown otomatis teratur)..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan ke Koleksi Jurnal</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        {% for j in jurnal_list %}
+        <div class="col-12">
+            <div class="card-gold p-4 rounded-4">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <span class="badge bg-info text-dark fw-bold mb-2 me-1">{{ j.kategori }}</span>
+                        {% if j.penulis %}<small class="text-muted"><i class="fa-solid fa-user-pen me-1"></i>{{ j.penulis }}</small>{% endif %}
+                        <h4 class="h5 fw-bold text-warning mb-1" style="word-break: break-word;">{{ j.judul }}</h4>
+                    </div>
+                    {% if is_admin %}
+                    <form action="/hapus-jurnal/{{ j.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus jurnal ini?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <hr class="border-secondary opacity-25 my-2">
+
+                <div class="markdown-body text-main my-3" id="content-jurnal-{{ j.id }}"></div>
+                <textarea id="raw-jurnal-{{ j.id }}" style="display:none;">{{ j.poin_penting }}</textarea>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top border-secondary border-opacity-10">
+                    <small class="text-muted"><i class="fa-solid fa-calendar-day me-1"></i>Dibaca: {{ j.tanggal_baca.strftime('%d %b %Y') }}</small>
+                    {% if j.file_pdf %}
+                    <a href="/baca-pdf?nama={{ j.file_pdf }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Buka File PDF
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada jurnal yang didata bulan ini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for j in jurnal_list %}
+    var rawText = document.getElementById('raw-jurnal-{{ j.id }}').value;
+    document.getElementById('content-jurnal-{{ j.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+</script>
+</body>
+</html>
+"""
+
+HTML_HASIL_CARI = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Hasil Pencarian: {{ query }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-5" style="max-width:800px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm mb-4 fw-bold">&larr; Kembali</a>
+    
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h4 class="fw-bold mb-2">🔍 Hasil Pencarian: "<span class="text-warning">{{ query }}</span>"</h4>
+        <p class="text-muted small mb-0">Ditemukan {{ hasil_catatan|length }} bab buku, {{ hasil_jurnal|length }} e-jurnal, dan {{ hasil_esai|length }} esai.</p>
+    </div>
+
+    <h5 class="fw-bold text-warning mb-3">Koleksi E-Jurnal & Riset</h5>
+    {% for j in hasil_jurnal %}
+    <div class="card-gold p-3 mb-3">
+        <span class="badge bg-info text-dark mb-1">{{ j.kategori }}</span>
+        <h5 class="fw-bold mb-1">{{ j.judul }}</h5>
+        <p class="small text-muted mb-2">{{ j.poin_penting[:180] }}...</p>
+        <a href="/jurnal" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Koleksi Jurnal &rarr;</a>
+    </div>
+    {% else %}
+    <p class="text-muted small mb-4">Tidak ada jurnal yang cocok.</p>
+    {% endfor %}
+
+    <h5 class="fw-bold text-warning mb-3">Bab Buku</h5>
+    {% for c in hasil_catatan %}
+    <div class="card-gold p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="badge bg-secondary">{{ c.bagian or 'Bab' }}</span>
+            <a href="/buku/{{ c.buku_id }}#bab-{{ c.id }}" class="btn btn-warning btn-sm text-dark fw-bold rounded-pill">Buka Bab &rarr;</a>
+        </div>
+        <h5 class="fw-bold mb-1">{{ c.judul_bab }}</h5>
+        <p class="small text-muted mb-0">{{ c.isi[:180] }}...</p>
+    </div>
+    {% else %}
+    <p class="text-muted small mb-4">Tidak ada bab yang cocok.</p>
+    {% endfor %}
+
+    <h5 class="fw-bold text-warning mb-3">Jurnal & Esai</h5>
+    {% for e in hasil_esai %}
+    <div class="card-gold p-3 mb-3">
+        <span class="badge bg-info text-dark mb-1">{{ e.kategori }}</span>
+        <h5 class="fw-bold mb-1">{{ e.judul }}</h5>
+        <p class="small text-muted mb-0">{{ e.isi[:180] }}...</p>
+    </div>
+    {% else %}
+    <p class="text-muted small">Tidak ada esai yang cocok.</p>
+    {% endfor %}
+</div>
+</body>
+</html>
+"""
+
+HTML_BUKU_DETAIL = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Buku - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<div id="reading-progress"></div>
+
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<a href="#" class="btn-to-top" id="btnScrollTop" title="Kembali ke Atas"><i class="fa-solid fa-arrow-up"></i></a>
+
+<div class="container py-5" style="max-width:850px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <a href="/tema/{{ buku.tema_id }}" class="btn btn-custom-outline rounded-pill btn-sm px-4 shadow-sm fw-bold"><i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Tema</a>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down me-1"></i> TXT</a>
+            <a href="/export-buku-docx/{{ buku.id }}" class="btn btn-outline-info btn-sm rounded-pill fw-bold" title="Word"><i class="fa-solid fa-file-word me-1"></i> DOCX</a>
+            <a href="/export-buku-epub/{{ buku.id }}" class="btn btn-outline-success btn-sm rounded-pill fw-bold" title="E-Book"><i class="fa-solid fa-book me-1"></i> EPUB</a>
+            <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-warning text-dark btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> PDF Buku</a>
+            {% if is_admin %}
+            <button type="button" class="btn btn-info btn-sm rounded-pill fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#editBukuModal"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Buku</button>
+            <button type="button" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#modalUrutanBab"><i class="fa-solid fa-arrow-down-up-2-1 me-1"></i> Ubah Urutan Bab</button>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card-gold p-4 mb-4 rounded-4 text-center">
+        <!-- COVER BUKU PALING ATAS -->
+        {% if buku.cover_url %}
+        <div class="mb-3">
+            <a href="{{ buku.cover_url }}" target="_blank">
+                <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+                     style="max-width: 160px; height: auto; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); border: 2px solid #b38728; transition: transform 0.3s ease;"
+                     onmouseover="this.style.transform='scale(1.05)'" 
+                     onmouseout="this.style.transform='scale(1)'">
+            </a>
+        </div>
+        {% endif %}
+
+        <span class="badge bg-warning text-dark mb-2 fw-bold"><i class="fa-solid fa-book me-1"></i> Naskah Buku</span>
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">{{ buku.judul.upper() }}</h2>
+        {% if buku.subjudul %}<p class="text-muted mb-2">{{ buku.subjudul }}</p>{% endif %}
+        {% if buku.kutipan %}<blockquote class="blockquote small text-muted fst-italic mb-0">"{{ buku.kutipan }}"</blockquote>{% endif %}
+    </div>
+
+    {% if catatan_grouped %}
+    <div class="toc-box">
+        <h6 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-list me-2"></i> Daftar Isi Buku</h6>
+        {% for bagian, cats in catatan_grouped.items() %}
+            <div class="toc-section-title"><i class="fa-solid fa-bookmark me-1 text-warning"></i> {{ bagian }}</div>
+            <ul class="toc-list">
+                {% for c in cats %}
+                <li>
+                    <a href="#bab-{{ c.id }}">
+                        <i class="fa-solid fa-angle-right text-muted small"></i> {{ c.judul_bab }}
+                        {% if c.file_audio %}<span class="badge bg-success text-white ms-1" style="font-size: 10px;">🎙️ Audio</span>{% endif %}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if is_admin %}
+    <div class="modal fade" id="modalUrutanBab" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title fw-bold text-warning"><i class="fa-solid fa-arrow-down-up-2-1 me-2"></i>Atur Urutan Bab</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <form action="/ubah-urutan-bab/{{ buku.id }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+                <p class="small text-muted mb-3">Ubah angka urutan bab di bawah ini (semakin kecil angkanya, semakin tinggi posisinya):</p>
+                {% for cat in catatan_list %}
+                <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-secondary rounded">
+                    <input type="hidden" name="catatan_ids[]" value="{{ cat.id }}">
+                    <input type="number" name="urutan_vals[]" class="form-control form-control-sm text-center fw-bold" style="width:70px;" value="{{ cat.urutan }}" min="1">
+                    <span class="badge bg-warning text-dark">{{ cat.bagian or 'Utama' }}</span>
+                    <strong class="text-truncate">{{ cat.judul_bab }}</strong>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark">Simpan Urutan</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="editBukuModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title fw-bold">✏️ Edit Informasi Buku</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <form action="/edit-buku/{{ buku.id }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-body">
+                <div class="mb-2">
+                    <label class="small text-muted">Judul Buku</label>
+                    <input type="text" name="judul" class="form-control bg-secondary text-white" value="{{ buku.judul }}" required>
+                </div>
+                <div class="mb-2">
+                    <label class="small text-muted">Subjudul</label>
+                    <input type="text" name="subjudul" class="form-control bg-secondary text-white" value="{{ buku.subjudul or '' }}">
+                </div>
+                <div class="mb-2">
+                    <label class="small text-muted">Kutipan / Quote</label>
+                    <textarea name="kutipan" class="form-control bg-secondary text-white" rows="2">{{ buku.kutipan or '' }}</textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="small text-muted">Link Gambar Cover (URL)</label>
+                    <input type="url" name="cover_url" class="form-control bg-secondary text-white" value="{{ buku.cover_url or '' }}" placeholder="https://i.imgur.com/...jpg">
+                </div>
+              </div>
+              <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-info fw-bold text-dark">Simpan Perubahan</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-file-circle-plus me-1"></i> Tambah Bab / Catatan Baru</h6>
+        <form action="/tambah-catatan" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="buku_id" value="{{ buku.id }}">
+            <div class="row g-2 mb-2">
+                <div class="col-md-3"><input type="text" name="bagian" class="form-control form-control-sm" placeholder="Kategori/Bagian"></div>
+                <div class="col-md-7"><input type="text" name="judul_bab" class="form-control form-control-sm" placeholder="Judul Bab..." required></div>
+                <div class="col-md-2"><input type="number" name="urutan" class="form-control form-control-sm" placeholder="Urutan (cth: 1)" value="1" min="1"></div>
+            </div>
+            <div class="mb-2">
+                <input type="url" name="file_audio" class="form-control form-control-sm" placeholder="🎙️ Paste Link Google Drive Audio (Opsional)...">
+            </div>
+            <div class="mb-2"><textarea name="isi" class="form-control form-control-sm" rows="5" placeholder="Tulis isi catatan atau naskah bab (Markdown didukung, contoh gambar: ![nama](link_gambar))..." required></textarea></div>
+            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Bab</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <h5 class="fw-bold mb-3" style="font-family:'Cinzel',serif;">Daftar Bab & Catatan:</h5>
+    <div class="row g-3">
+        {% for bagian, cats in catatan_grouped.items() %}
+        <div class="col-12">
+            <div class="section-header-card"><i class="fa-solid fa-bookmark me-2"></i> {{ bagian }}</div>
+        </div>
+        {% for cat in cats %}
+        <div class="col-12" id="bab-{{ cat.id }}">
+            <div class="card-gold p-4 position-relative">
+                <div class="position-absolute top-0 end-0 p-3 d-flex align-items-center gap-1 flex-wrap justify-content-end" style="max-width: 380px;">
+                    <span class="badge bg-dark text-warning border border-warning px-2 py-1 me-1">Urutan #{{ cat.urutan }}</span>
+                    
+                    {% if cat.file_audio %}
+                    <button type="button" class="btn btn-sm btn-success text-white rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="toggleAudioPlayer({{ cat.id }})">
+                        <i class="fa-solid fa-circle-play me-1"></i> Rekaman
+                    </button>
+                    {% endif %}
+
+                    <button type="button" id="btnAudio-{{ cat.id }}" class="btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm" onclick="playBabTTS({{ cat.id }}, '{{ cat.judul_bab | e }}')">
+                        <i class="fa-solid fa-headphones me-1"></i> <span id="labelAudio-{{ cat.id }}">Suara AI</span>
+                    </button>
+
+                    <form action="/tandai-baca/{{ cat.id }}" method="POST" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm {% if penanda_aktif and penanda_aktif.catatan_id == cat.id %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %} rounded-pill fw-bold px-2 py-1" title="Tandai posisi bacaan terakhir">
+                            <i class="fa-solid fa-bookmark me-1"></i> {% if penanda_aktif and penanda_aktif.catatan_id == cat.id %}Dibaca{% else %}Tandai{% endif %}
+                        </button>
+                    </form>
+
+                    {% if is_admin %}
+                    <button type="button" class="btn btn-link text-info p-1" data-bs-toggle="modal" data-bs-target="#editBabModal{{ cat.id }}" title="Edit Bab">
+                        <i class="fa-solid fa-pen-to-square fs-5"></i>
+                    </button>
+                    <form action="/toggle-favorit/{{ cat.id }}" method="POST" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-link p-1 {% if cat.favorit %}text-warning{% else %}text-muted{% endif %}" title="Tandai Favorit">
+                            <i class="fa-solid fa-star fs-5"></i>
+                        </button>
+                    </form>
+                    <form action="/hapus-catatan/{{ cat.id }}/{{ buku.id }}" method="POST" class="mb-0" onsubmit="return confirm('Hapus bab ini?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-link text-danger p-1" title="Hapus Bab"><i class="fa-solid fa-trash fs-5"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if cat.bagian %}<span class="note-card-badge">{{ cat.bagian }}</span>{% endif %}
+                <h4 class="note-card-title">{{ cat.judul_bab }}</h4>
+
+                {% if cat.file_audio %}
+                <div class="audio-player-box" id="player-box-{{ cat.id }}">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <small class="fw-bold text-warning"><i class="fa-solid fa-microphone me-1"></i> Pemutar Suara Rekaman Asli Bab Ini:</small>
+                    </div>
+                    {% if "drive.google.com" in cat.file_audio %}
+                    <iframe src="{{ cat.file_audio }}" width="100%" height="60" style="border:none; border-radius:8px;" allow="autoplay"></iframe>
+                    {% else %}
+                    <audio controls class="w-100" style="height: 38px;">
+                        <source src="{{ cat.file_audio }}" type="audio/mpeg">
+                        Browser Anda tidak mendukung pemutar audio.
+                    </audio>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="markdown-body text-main tts-isi-bab-{{ cat.id }}" id="content-catatan-{{ cat.id }}"></div>
+                <textarea id="raw-catatan-{{ cat.id }}" style="display:none;">{{ cat.isi }}</textarea>
+                <div class="text-muted small mt-3">Dibuat: {{ cat.dibuat_pada.strftime('%d %b %Y %H:%M') if cat.dibuat_pada else '-' }}</div>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <div class="modal fade" id="editBabModal{{ cat.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white border-secondary">
+              <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">✏️ Edit Bab: {{ cat.judul_bab }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <form action="/edit-catatan/{{ cat.id }}" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="modal-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-3">
+                            <label class="small text-muted">Bagian</label>
+                            <input type="text" name="bagian" class="form-control bg-secondary text-white" value="{{ cat.bagian or '' }}">
+                        </div>
+                        <div class="col-md-7">
+                            <label class="small text-muted">Judul Bab</label>
+                            <input type="text" name="judul_bab" class="form-control bg-secondary text-white" value="{{ cat.judul_bab }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted">Urutan</label>
+                            <input type="number" name="urutan" class="form-control bg-secondary text-white" value="{{ cat.urutan }}" min="1">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small text-muted">Link Audio Rekaman Google Drive (Opsional)</label>
+                        <input type="text" name="file_audio" class="form-control bg-secondary text-white" value="{{ cat.file_audio or '' }}" placeholder="Paste link Google Drive...">
+                    </div>
+                    <div class="mb-2">
+                        <label class="small text-muted">Isi Naskah (Markdown)</label>
+                        <textarea name="isi" class="form-control bg-secondary text-white" rows="10" required>{{ cat.isi }}</textarea>
+                    </div>
+                  </div>
+                  <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-success fw-bold">Simpan Perubahan</button>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        
+        {% else %}
+        <div class="text-center py-4 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada catatan bab dalam buku ini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for cat in catatan_list %}
+        var rawText = document.getElementById('raw-catatan-{{ cat.id }}').value;
+        document.getElementById('content-catatan-{{ cat.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+
+function toggleAudioPlayer(id) {
+    const playerBox = document.getElementById('player-box-' + id);
+    if (playerBox) {
+        if (playerBox.style.display === 'none') {
+            playerBox.style.display = 'block';
+            playerBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            playerBox.style.display = 'none';
+        }
+    }
+}
+
+let synth = window.speechSynthesis;
+let activeUtteranceId = null;
+
+function playBabTTS(id, judulBab) {
+    if (!synth) {
+        alert("Browser Anda tidak mendukung fitur suara (Text-to-Speech).");
+        return;
+    }
+
+    const btn = document.getElementById('btnAudio-' + id);
+    const label = document.getElementById('labelAudio-' + id);
+
+    if (synth.speaking && activeUtteranceId === id) {
+        synth.cancel();
+        resetTombolTTS(id);
+        activeUtteranceId = null;
+        return;
+    }
+
+    if (synth.speaking) {
+        synth.cancel();
+        if (activeUtteranceId !== null) {
+            resetTombolTTS(activeUtteranceId);
+        }
+    }
+
+    const contentEl = document.querySelector('.tts-isi-bab-' + id);
+    if (!contentEl) return;
+
+    let textToRead = "Judul bab: " + judulBab + ". " + contentEl.innerText;
+    textToRead = textToRead.replace(/[«»“”"''*#_`~]/g, '');
+
+    let utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = 'id-ID';
+    utterance.rate = 1.0;
+
+    utterance.onstart = function() {
+        activeUtteranceId = id;
+        label.innerText = "Stop ⏹";
+        btn.className = "btn btn-sm btn-danger text-white rounded-pill fw-bold px-2 py-1 shadow-sm";
+    };
+
+    utterance.onend = function() {
+        resetTombolTTS(id);
+        activeUtteranceId = null;
+    };
+
+    utterance.onerror = function() {
+        resetTombolTTS(id);
+        activeUtteranceId = null;
+    };
+
+    synth.speak(utterance);
+}
+
+function resetTombolTTS(id) {
+    const btn = document.getElementById('btnAudio-' + id);
+    const label = document.getElementById('labelAudio-' + id);
+    if (btn && label) {
+        label.innerText = "Suara AI";
+        btn.className = "btn btn-sm btn-info text-dark rounded-pill fw-bold px-2 py-1 shadow-sm";
+    }
+}
+</script>
+</body>
+</html>
+"""
+
+HTML_FAVORIT = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Favorit</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-star me-2"></i> Koleksi Favorit</h4><div class="d-flex flex-column gap-3">{% for c in catatan_favorit %}<div class="card-gold p-4"><div class="d-flex justify-content-between align-items-center mb-2"><span class="badge bg-warning text-dark">Buku ID: {{ c.buku_id }}</span><a href="/buku/{{ c.buku_id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold">Buka Buku &rarr;</a></div><h5 class="fw-bold mb-2">{{ c.judul_bab }}</h5><p class="small text-muted mb-0">{{ c.isi[:140] }}...</p></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted mb-0">Belum ada bab favorit.</p></div>{% endfor %}</div></div></body></html>"""
+
+HTML_PDF_VIEWER = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>PDF Reader</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.pdf-frame-wrapper{position:relative;width:100%;height:75vh;border-radius:14px;overflow:hidden;border:1px solid var(--border-color);}iframe{width:100%;height:100%;border:none;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:920px;"><a href="/" class="btn btn-custom-outline btn-sm mb-3">&larr; Kembali</a>{% if is_admin %}<div class="card-gold p-3 mb-4 rounded-3"><form action="/upload-pdf" method="POST" enctype="multipart/form-data" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-9"><input type="file" name="file_pdf" class="form-control form-control-sm" accept=".pdf" required></div><div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Upload PDF</button></div></form></div>{% endif %}<div class="card-gold p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"><h4 class="h5 fw-bold mb-0 text-warning">{{ nama_file }}</h4>{% if nama_file != "Pilih file PDF di bawah" %}<a href="/file-pdf/{{ nama_file }}" download class="btn btn-outline-warning btn-sm rounded-pill fw-bold"><i class="fa-solid fa-download me-1"></i> Download</a>{% endif %}</div><div class="card-gold p-3 mb-3"><div class="d-flex flex-wrap gap-2">{% for f in daftar_file %}<a href="/baca-pdf?nama={{ f }}" class="btn btn-sm {% if f == nama_file %}btn-warning text-dark{% else %}btn-custom-outline{% endif %} rounded-pill fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> {{ f }}</a>{% endfor %}</div></div>{% if url_pdf %}<div class="pdf-frame-wrapper card-gold"><iframe src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_pdf }}"></iframe></div>{% endif %}</div></body></html>"""
+
+HTML_ESAI_PENULIS = """<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jurnal & Esai Bebas - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-4" style="max-width:760px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4 fw-bold rounded-pill px-3">&larr; Kembali ke Utama</a>
+    <div class="card-gold p-4 rounded-4 mb-4">
+        <h2 class="h3 fw-bold text-warning mb-1" style="font-family:'Cinzel',serif;">✍️ Jurnal & Esai Bebas</h2>
+        <p class="text-muted small mb-0">Catatan perenungan, pemikiran acak, dan tulisan lepas.</p>
+    </div>
+
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-pen-nib me-1"></i> Tulis Esai / Refleksi Baru</h6>
+        <form action="/tambah-esai" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="judul" class="form-control form-control-sm mb-2" placeholder="Judul Esai..." required>
+            <input type="text" name="kategori" class="form-control form-control-sm mb-2" placeholder="Kategori (misal: Rangkuman YouTube, Refleksi, Dll)...">
+            <textarea name="isi" class="form-control form-control-sm mb-2" rows="5" placeholder="Tulis naskah esai di sini (Markdown didukung)..." required></textarea>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold text-dark">Terbitkan Esai</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% for e in esai_list %}
+    <div class="card-gold p-4 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <span class="badge bg-info text-dark fw-bold">{{ e.kategori }}</span>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill fw-bold" data-bs-toggle="collapse" data-bs-target="#esai-body-{{ e.id }}">
+                    <i class="fa-solid fa-book-open me-1"></i> Baca Esai
+                </button>
+                <a href="/cetak-esai-pdf/{{ e.id }}" class="btn btn-outline-danger btn-sm rounded-pill fw-bold"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+            </div>
+        </div>
+        <h4 class="text-warning fw-bold mb-3" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#esai-body-{{ e.id }}">
+            {{ e.judul }}
+        </h4>
+        
+        <div class="collapse show" id="esai-body-{{ e.id }}">
+            <hr class="border-secondary opacity-25">
+            <div class="markdown-body text-main" id="content-esai-{{ e.id }}"></div>
+            <textarea id="raw-esai-{{ e.id }}" style="display:none;">{{ e.isi }}</textarea>
+            <div class="text-muted small mt-3">Ditulis: {{ e.dibuat_pada.strftime('%d %b %Y') if e.dibuat_pada else '-' }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5 card-gold rounded-4">
+        <p class="text-muted mb-0">Belum ada esai atau refleksi yang ditulis.</p>
+    </div>
+    {% endfor %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    marked.use({ gfm: true, breaks: true });
+    {% for e in esai_list %}
+    var rawText = document.getElementById('raw-esai-{{ e.id }}').value;
+    document.getElementById('content-esai-{{ e.id }}').innerHTML = marked.parse(rawText);
+    {% endfor %}
+});
+</script>
+</body>
+</html>
+"""
+
+HTML_TEMA = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tema: {{ tema.nama }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """</style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button>
+<div class="container py-5" style="max-width:850px;">
+    <a href="/" class="btn btn-custom-outline rounded-pill btn-sm px-4 mb-4 fw-bold">&larr; Kembali</a>
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif;">Tema: {{ tema.nama }}</h2>
+    </div>
+    {% if is_admin %}
+    <div class="card-gold p-3 mb-4 rounded-3">
+        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-plus me-1"></i> Tambah Buku Baru di Tema Ini</h6>
+        <form action="/tambah-buku" method="POST" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="tema_id" value="{{ tema.id }}">
+            <div class="col-md-6"><input type="text" name="judul" class="form-control form-control-sm" placeholder="Judul Buku..." required></div>
+            <div class="col-md-6"><input type="text" name="subjudul" class="form-control form-control-sm" placeholder="Subjudul"></div>
+            <div class="col-12"><textarea name="kutipan" class="form-control form-control-sm" rows="2" placeholder="Kutipan..."></textarea></div>
+            <div class="col-12"><input type="url" name="cover_url" class="form-control form-control-sm" placeholder="Link Gambar Cover (URL)..."></div>
+            <div class="col-12"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Simpan Buku</button></div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        {% for buku in buku_list %}
+        <div class="col-12">
+            <div class="card-gold p-4 rounded-4">
+                <div class="row align-items-center g-3">
+                    {% if buku.cover_url %}
+                    <div class="col-12 col-sm-auto text-center">
+                        <a href="/buku/{{ buku.id }}">
+                            <img src="{{ buku.cover_url }}" alt="Cover {{ buku.judul }}" 
+                                 style="width: 100px; height: 145px; object-fit: cover; border-radius: 10px; border: 2px solid #b38728; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: inline-block;">
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col">
+                        <a href="/buku/{{ buku.id }}" class="text-decoration-none">
+                            <h4 class="h5 mb-2 fw-bold text-warning" style="word-break: break-word; line-height: 1.4;">{{ buku.judul.upper() }}</h4>
+                        </a>
+                        {% if buku.subjudul %}
+                            <p class="text-muted small mb-2" style="word-break: break-word;">{{ buku.subjudul }}</p>
+                        {% endif %}
+                        
+                        <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+                            <a href="/buku/{{ buku.id }}" class="btn btn-warning btn-sm text-dark rounded-pill fw-bold px-3"><i class="fa-solid fa-book-open me-1"></i> Buka Buku</a>
+                            <a href="/export-buku/{{ buku.id }}" class="btn btn-outline-warning btn-sm rounded-pill fw-bold" title="TXT"><i class="fa-solid fa-file-arrow-down"></i></a>
+                            <a href="/export-buku-pdf/{{ buku.id }}" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                            {% if is_admin %}
+                            <button type="button" class="btn btn-outline-info btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#pindahTemaModal{{ buku.id }}" title="Pindah Tema"><i class="fa-solid fa-folder-tree"></i></button>
+                            <form action="/hapus-buku/{{ buku.id }}/{{ tema.id }}" method="POST" class="d-inline mb-0" onsubmit="return confirm('Hapus buku ini beserta seluruh isinya?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" title="Hapus Buku"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <div class="modal fade" id="pindahTemaModal{{ buku.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white border-secondary">
+              <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold">📂 Pindah Buku ke Tema Lain</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <form action="/pindah-tema-buku/{{ buku.id }}" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="modal-body">
+                    <p class="small text-muted">Pilih tema tujuan untuk buku: <strong>{{ buku.judul }}</strong></p>
+                    <select name="tema_baru_id" class="form-select bg-secondary text-white border-secondary" required>
+                        {% for t_all in semua_tema %}
+                        <option value="{{ t_all.id }}" {% if t_all.id == tema.id %}selected{% endif %}>{{ t_all.nama }}</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+                  <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-info fw-bold text-dark">Pindahkan Buku</button>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5 card-gold rounded-4">
+            <p class="text-muted mb-0">Belum ada buku dalam tema ini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+HTML_PENULIS = """
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profil Penulis - Dede Suhendra</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>""" + CSS_SHARED + """</style>
     """ + JS_THEME_SCRIPT + """
@@ -624,7 +1499,7 @@ HTML_PENULIS = """<!DOCTYPE html>
             <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👫 Siti Aisyah & Muhammad Naimul Ilmi</strong><p class="small text-muted mb-0 mt-1">Adik-adik tersayang, kebanggaan dan penyemangat.</p></div></div>
             <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👦 Muhammad Aji</strong><p class="small text-muted mb-0 mt-1">Kakak tercinta atas kebersamaan dan dukungan.</p></div></div>
             <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">❤️ Sri Nur Safitri</strong><p class="small text-muted mb-0 mt-1">Perhatian, dorongan semangat, dan pendamping setia.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">🤝 Sahabat & Kolega</strong><p class="small text-muted mb-0 mt-1">Dukungan dalam diskusi, perjuangan, dan kebersamaan.</p></div></div>
+            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">🤝 Sahabat & Kolega</strong><p class="small text-muted mb-0 mt-1">Semua yang telah mendukung dan mendoakan.</p></div></div>
         </div>
     </div>
 </div>
@@ -632,512 +1507,509 @@ HTML_PENULIS = """<!DOCTYPE html>
 </html>
 """
 
-HTML_LOGIN = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Login Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body class="d-flex align-items-center justify-content-center min-vh-100">
-<div class="card-gold p-4" style="max-width: 400px; width: 100%;">
-    <h4 class="fw-bold text-center mb-3 text-warning">🔐 Authentikasi Admin</h4>
-    {% if error %}
-    <div class="alert alert-danger py-2 small">{{ error }}</div>
-    {% endif %}
-    <form action="/login" method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="mb-3">
-            <label class="form-label small">Username</label>
-            <input type="text" name="username" class="form-control" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label small">Password</label>
-            <input type="password" name="password" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-warning text-dark fw-bold w-100">Login</button>
-    </form>
-</div>
-</body>
-</html>
-"""
+HTML_STATISTIK = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Statistik</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """.stat-number{font-size:42px;font-weight:800;color:#b38728;}</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:600px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h3 class="mb-4 text-center fw-bold">📊 Statistik</h3><div class="row g-3"><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_buku }}</div><div class="text-muted">Buku</div></div></div><div class="col-6"><div class="card-gold text-center p-4"><div class="stat-number">{{ total_catatan }}</div><div class="text-muted">Bab</div></div></div></div></div></body></html>"""
+HTML_TONG_SAMPAH = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Tong Sampah</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:700px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="mb-4 fw-bold">🗑️ Tong Sampah</h4>{% for item in sampah_list %}<div class="card-gold p-3 mb-2 d-flex justify-content-between align-items-center"><div><span class="badge bg-secondary me-2">{{ item.tipe }}</span><span>{{ item.data_json }}</span></div><div class="d-flex gap-2"><a href="/pulihkan/{{ item.id }}" class="btn btn-sm btn-success"><i class="fa-solid fa-rotate-left"></i></a><a href="/hapus-permanen/{{ item.id }}" class="btn btn-sm btn-danger"><i class="fa-solid fa-trash-xmark"></i></a></div></div>{% else %}<div class="text-center py-5 card-gold rounded-4"><p class="text-muted">Kosong.</p></div>{% endfor %}</div></body></html>"""
+HTML_LOG = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Log</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>""" + CSS_SHARED + """</style>""" + JS_THEME_SCRIPT + """</head><body><button class="btn btn-mode-toggle" onclick="toggleModeInstan()"><i class="fa-solid fa-moon" id="icon-mode"></i></button><div class="container py-4" style="max-width:750px;"><a href="/" class="btn btn-custom-outline btn-sm mb-4">&larr; Kembali</a><h4 class="fw-bold mb-3 text-warning">Riwayat Log</h4><div class="d-flex flex-column gap-2">{% for l in logs %}<div class="card-gold p-3"><span class="badge bg-warning text-dark fw-bold mb-1">{{ l.aksi }}</span><p class="mb-0 small">{{ l.keterangan }}</p></div>{% endfor %}</div></div></body></html>"""
+HTML_LOGIN = """<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Login</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{background:#0f172a;color:#f8fafc;display:flex;justify-content:center;align-items:center;min-height:100vh;}.login-card{background:#1e293b;border:1px solid #334155;padding:30px;border-radius:12px;width:100%;max-width:400px;}</style></head><body><div class="login-card shadow-lg"><h3 class="text-info text-center fw-bold mb-3">🔑 Login Admin</h3>{% if error %}<div class="alert alert-danger py-2 small text-center">{{ error }}</div>{% endif %}<form action="/login" method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="text" name="username" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Username" required><input type="password" name="password" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Password" required><button type="submit" class="btn btn-info w-100 fw-bold">Masuk</button></form><div class="text-center mt-3"><a href="/" class="text-muted text-decoration-none small">&larr; Kembali</a></div></div></body></html>"""
 
-HTML_JURNAL = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Koleksi Jurnal & Artikel</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>""" + CSS_SHARED + """</style>
-    """ + JS_THEME_SCRIPT + """
-</head>
-<body>
-<div class="container py-5" style="max-width:850px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Kembali ke Beranda</a>
-    <h2 class="h4 fw-bold text-warning mb-4"><i class="fa-solid fa-book-bookmark me-2"></i>Koleksi Jurnal & Ringkasan Referensi</h2>
-
-    {% if is_admin %}
-    <div class="card-gold p-4 mb-4 rounded-4">
-        <h5 class="fw-bold text-warning mb-3">➕ Tambah Referensi Jurnal</h5>
-        <form action="/tambah-jurnal" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-3">
-                <input type="text" name="judul" class="form-control" placeholder="Judul Jurnal / Artikel" required>
-            </div>
-            <div class="row g-2 mb-3">
-                <div class="col-md-6"><input type="text" name="penulis" class="form-control" placeholder="Penulis / Sumber"></div>
-                <div class="col-md-6"><input type="text" name="kategori" class="form-control" placeholder="Kategori (misal: Agama, Sains)"></div>
-            </div>
-            <div class="mb-3">
-                <textarea name="poin_penting" class="form-control" rows="3" placeholder="Poin penting & ringkasan isi..." required></textarea>
-            </div>
-            <div class="mb-3">
-                <label class="form-label small text-muted">Upload File PDF (Opsional)</label>
-                <input type="file" name="file_pdf" class="form-control" accept=".pdf">
-            </div>
-            <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4">Simpan Jurnal</button>
-        </form>
-    </div>
-    {% endif %}
-
-    <div class="row g-3">
-        {% for j in jurnal_list %}
-        <div class="col-12">
-            <div class="card-gold p-4 rounded-4">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h5 class="fw-bold text-warning mb-0">{{ j.judul }}</h5>
-                    <span class="badge bg-warning text-dark">{{ j.kategori }}</span>
-                </div>
-                <p class="small text-muted mb-2">Penulis: {{ j.penulis or 'Tidak disebutkan' }}</p>
-                <p class="small mb-3">{{ j.poin_penting }}</p>
-                {% if j.file_pdf %}
-                <a href="/file-pdf/{{ j.file_pdf }}" target="_blank" class="btn btn-sm btn-outline-warning rounded-pill"><i class="fa-solid fa-file-pdf me-1"></i> Buka File PDF</a>
-                {% endif %}
-            </div>
-        </div>
-        {% else %}
-        <p class="text-muted">Belum ada jurnal yang ditambahkan.</p>
-        {% endfor %}
-    </div>
-</div>
-</body>
-</html>
-"""
-
-HTML_BUKU_DETAIL = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ buku.judul }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>""" + CSS_SHARED + """</style>
-    """ + JS_THEME_SCRIPT + """
-</head>
-<body>
-<div id="reading-progress"></div>
-<div class="container py-5" style="max-width:850px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Beranda</a>
-    
-    <div class="card-gold p-4 mb-4 rounded-4">
-        <h1 class="h3 fw-bold text-warning mb-2" style="font-family:'Cinzel',serif;">{{ buku.judul }}</h1>
-        {% if buku.subjudul %}<p class="text-muted small mb-2">{{ buku.subjudul }}</p>{% endif %}
-        {% if buku.kutipan %}<p class="fst-italic small border-start border-warning ps-3 my-2 text-warning">"{{ buku.kutipan }}"</p>{% endif %}
-    </div>
-
-    <!-- TOC Box -->
-    <div class="toc-box mb-4">
-        <h6 class="fw-bold text-warning mb-2"><i class="fa-solid fa-list-ol me-2"></i>Daftar Isi Buku</h6>
-        <ul class="toc-list">
-            {% for c in catatan_list %}
-            <li><a href="#bab-{{ c.id }}"><i class="fa-solid fa-angle-right"></i> {{ c.judul_bab }}</a></li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    {% if is_admin %}
-    <div class="card-gold p-4 mb-4 rounded-4">
-        <h5 class="fw-bold text-warning mb-3">➕ Tambah Catatan / Bab Baru</h5>
-        <form action="/tambah-catatan" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="buku_id" value="{{ buku.id }}">
-            <div class="row g-2 mb-3">
-                <div class="col-md-4"><input type="text" name="bagian" class="form-control" placeholder="Bagian (misal: Bagian I)"></div>
-                <div class="col-md-6"><input type="text" name="judul_bab" class="form-control" placeholder="Judul Bab" required></div>
-                <div class="col-md-2"><input type="number" name="urutan" class="form-control" value="1" placeholder="Urutan"></div>
-            </div>
-            <div class="mb-3">
-                <textarea name="isi" class="form-control markdown-body" rows="6" placeholder="Isi catatan (Mendukung Markdown)..." required></textarea>
-            </div>
-            <div class="mb-3">
-                <input type="text" name="file_audio" class="form-control" placeholder="URL Google Drive Audio/Stream (Opsional)">
-            </div>
-            <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4">Simpan Bab</button>
-        </form>
-    </div>
-    {% endif %}
-
-    <!-- Daftar Bab / Catatan -->
-    {% for c in catatan_list %}
-    <div class="card-gold p-4 mb-4 rounded-4 position-relative" id="bab-{{ c.id }}">
-        <span class="note-card-badge">{{ c.bagian or 'BAB' }}</span>
-        <h3 class="note-card-title">{{ c.judul_bab }}</h3>
-        
-        <div class="markdown-body mb-3">
-            {{ c.isi|replace('\n', '<br>')|safe }}
-        </div>
-
-        {% if c.file_audio %}
-        <div class="audio-player-box">
-            <small class="fw-bold text-warning d-block mb-1"><i class="fa-solid fa-headphones me-1"></i> Audio Penjelas / Murattal</small>
-            <iframe src="{{ c.file_audio }}" width="100%" height="60" frameborder="0"></iframe>
-        </div>
-        {% endif %}
-
-        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3" style="border-color:var(--border-color)!important;">
-            <form action="/tandai-baca/{{ c.id }}" method="POST" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill"><i class="fa-solid fa-bookmark me-1"></i> Tandai Terakhir Dibaca</button>
-            </form>
-            <small class="text-muted">Urutan: {{ c.urutan }}</small>
-        </div>
-    </div>
-    {% else %}
-    <p class="text-muted">Belum ada catatan pada buku ini.</p>
-    {% endfor %}
-</div>
-</body>
-</html>
-"""
-
-HTML_TEMA = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Tema: {{ tema.nama }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body>
-<div class="container py-5" style="max-width:850px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Kembali ke Beranda</a>
-    <h2 class="h4 fw-bold text-warning mb-4"><i class="fa-solid fa-folder me-2"></i>Koleksi Buku Tema: {{ tema.nama }}</h2>
-    
-    <div class="row g-3">
-        {% for b in buku_list %}
-        <div class="col-md-6">
-            <div class="card-gold p-4 rounded-4 h-100">
-                <h5 class="fw-bold text-warning mb-2"><a href="/buku/{{ b.id }}" class="text-decoration-none text-warning">{{ b.judul }}</a></h5>
-                <p class="small text-muted mb-3">{{ b.subjudul or '' }}</p>
-                <a href="/buku/{{ b.id }}" class="btn btn-sm btn-outline-warning rounded-pill">Buka Buku &rarr;</a>
-            </div>
-        </div>
-        {% else %}
-        <p class="text-muted">Belum ada buku untuk tema ini.</p>
-        {% endfor %}
-    </div>
-</div>
-</body>
-</html>
-"""
-
-HTML_ESAI_PENULIS = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Esai & Refleksi Penulis</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body>
-<div class="container py-5" style="max-width:800px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Beranda</a>
-    <h2 class="h4 fw-bold text-warning mb-4"><i class="fa-solid fa-feather me-2"></i>Esai & Refleksi Harian</h2>
-
-    <div class="row g-3">
-        {% for e in esai_list %}
-        <div class="col-12">
-            <div class="card-gold p-4 rounded-4">
-                <span class="badge bg-warning text-dark mb-2">{{ e.kategori }}</span>
-                <h4 class="h5 fw-bold text-warning mb-2">{{ e.judul }}</h4>
-                <div class="markdown-body text-main mb-2">{{ e.isi|replace('\n', '<br>')|safe }}</div>
-                <small class="text-muted">{{ e.dibuat_pada.strftime('%d %B %Y') }}</small>
-            </div>
-        </div>
-        {% else %}
-        <p class="text-muted">Belum ada esai yang dipublikasikan.</p>
-        {% endfor %}
-    </div>
-</div>
-</body>
-</html>
-"""
-
-HTML_HASIL_CARI = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Hasil Pencarian</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body>
-<div class="container py-5" style="max-width:800px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Beranda</a>
-    <h3 class="h5 fw-bold text-warning mb-4">🔍 Hasil Pencarian: "{{ query }}"</h3>
-
-    <h6 class="fw-bold text-warning mt-4">📖 Bab & Catatan Buku:</h6>
-    {% for c in hasil_catatan %}
-    <div class="card-gold p-3 mb-2 rounded-3">
-        <a href="/buku/{{ c.buku_id }}#bab-{{ c.id }}" class="fw-bold text-warning text-decoration-none">{{ c.judul_bab }}</a>
-    </div>
-    {% else %}
-    <p class="small text-muted">Tidak ditemukan di bab buku.</p>
-    {% endfor %}
-
-    <h6 class="fw-bold text-warning mt-4">📚 Jurnal & Referensi:</h6>
-    {% for j in hasil_jurnal %}
-    <div class="card-gold p-3 mb-2 rounded-3">
-        <span class="fw-bold text-warning">{{ j.judul }}</span>
-    </div>
-    {% else %}
-    <p class="small text-muted">Tidak ditemukan di jurnal.</p>
-    {% endfor %}
-</div>
-</body>
-</html>
-"""
-
-HTML_PDF_VIEWER = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>PDF Viewer Cloud</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body>
-<div class="container py-5" style="max-width:900px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Beranda</a>
-    <h2 class="h4 fw-bold text-warning mb-3">📄 Pembaca Dokumen PDF</h2>
-    
-    {% if url_pdf %}
-    <iframe src="{{ url_pdf }}" width="100%" height="600" style="border:1px solid var(--border-color); border-radius:12px;"></iframe>
-    {% else %}
-    <div class="card-gold p-4 rounded-4 text-center">
-        <p class="text-muted">Pilih dokumen PDF yang tersedia di daftar jurnal Anda.</p>
-    </div>
-    {% endif %}
-</div>
-</body>
-</html>
-"""
-
-HTML_FAVORIT = """<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Catatan Favorit</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>""" + CSS_SHARED + """</style>
-</head>
-<body>
-<div class="container py-5" style="max-width:800px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Beranda</a>
-    <h2 class="h4 fw-bold text-warning mb-4">⭐ Catatan Favorit</h2>
-    {% for c in catatan_favorit %}
-    <div class="card-gold p-4 mb-3 rounded-4">
-        <h5 class="fw-bold text-warning"><a href="/buku/{{ c.buku_id }}#bab-{{ c.id }}" class="text-decoration-none text-warning">{{ c.judul_bab }}</a></h5>
-    </div>
-    {% else %}
-    <p class="text-muted">Belum ada catatan yang ditandai sebagai favorit.</p>
-    {% endfor %}
-</div>
-</body>
-</html>
-"""
-
-# ==================================================
-# CONTROLLER & ROUTES APLIKASI
-# ==================================================
 @app.route('/')
 def index():
+    is_admin = session.get('is_admin')
     tema_list = Tema.query.order_by(Tema.id.asc()).all()
-    jumlah_jurnal = Jurnal.query.count()
     jumlah_esai = EsaiPenulis.query.count()
-    penanda_list = PenandaBaca.query.order_by(PenandaBaca.waktu_baca.desc()).all()
-    is_admin = session.get('is_admin', False)
-    return render_template_string(
-        HTML_INDEX, 
-        tema_list=tema_list, 
-        jumlah_jurnal=jumlah_jurnal, 
-        jumlah_esai=jumlah_esai, 
-        penanda_list=penanda_list, 
-        is_admin=is_admin
-    )
+    jumlah_jurnal = Jurnal.query.count()
+    penanda_list = PenandaBaca.query.order_by(PenandaBaca.waktu_baca.desc()).limit(1).all()
+    return render_template_string(HTML_INDEX, tema_list=tema_list, is_admin=is_admin, jumlah_esai=jumlah_esai, jumlah_jurnal=jumlah_jurnal, penanda_list=penanda_list)
+
+@app.route('/cari')
+def cari_naskah():
+    query = request.args.get('q', '').strip()
+    hasil_catatan = []
+    hasil_esai = []
+    hasil_jurnal = []
+
+    if query:
+        hasil_catatan = Catatan.query.filter(
+            (Catatan.judul_bab.ilike(f'%{query}%')) | 
+            (Catatan.isi.ilike(f'%{query}%'))
+        ).all()
+
+        hasil_esai = EsaiPenulis.query.filter(
+            (EsaiPenulis.judul.ilike(f'%{query}%')) | 
+            (EsaiPenulis.isi.ilike(f'%{query}%'))
+        ).all()
+
+        hasil_jurnal = Jurnal.query.filter(
+            (Jurnal.judul.ilike(f'%{query}%')) | 
+            (Jurnal.penulis.ilike(f'%{query}%')) |
+            (Jurnal.poin_penting.ilike(f'%{query}%'))
+        ).all()
+
+    return render_template_string(HTML_HASIL_CARI, query=query, hasil_catatan=hasil_catatan, hasil_esai=hasil_esai, hasil_jurnal=hasil_jurnal)
+
+# ==================================================
+# ROUTE BARU KOLEKSI E-JURNAL
+# ==================================================
+@app.route('/jurnal')
+def halaman_jurnal():
+    jurnal_list = Jurnal.query.order_by(Jurnal.tanggal_baca.desc()).all()
+    return render_template_string(HTML_JURNAL, jurnal_list=jurnal_list, is_admin=session.get('is_admin'))
+
+@app.route('/tambah-jurnal', methods=['POST'])
+def tambah_jurnal():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    judul = request.form.get('judul', '').strip()
+    penulis = request.form.get('penulis', '').strip()
+    kategori = request.form.get('kategori', 'Umum').strip()
+    poin_penting = request.form.get('poin_penting', '').strip()
+    
+    filename = None
+    file = request.files.get('file_pdf')
+    if file and file.filename.endswith('.pdf'):
+        filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+        file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+
+    if judul and poin_penting:
+        db.session.add(Jurnal(
+            judul=judul,
+            penulis=penulis,
+            kategori=kategori if kategori else 'Umum',
+            poin_penting=poin_penting,
+            file_pdf=filename
+        ))
+        db.session.commit()
+        catat_log("TAMBAH JURNAL", f"Mendata jurnal: {judul}")
+
+    return redirect('/jurnal')
+
+@app.route('/hapus-jurnal/<int:jurnal_id>', methods=['POST'])
+def hapus_jurnal(jurnal_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    jurnal = Jurnal.query.get(jurnal_id)
+    if jurnal:
+        masukkan_sampah('jurnal', {'judul': jurnal.judul, 'penulis': jurnal.penulis})
+        db.session.delete(jurnal)
+        db.session.commit()
+        catat_log("HAPUS JURNAL", f"Menghapus jurnal ID: {jurnal_id}")
+    return redirect('/jurnal')
+
+@app.route('/baca-pdf')
+def baca_pdf():
+    is_admin = session.get('is_admin')
+    daftar_file = [f for f in os.listdir(UPLOAD_PDF_FOLDER) if f.endswith('.pdf')]
+    nama_pilihan = request.args.get('nama')
+    if not nama_pilihan and daftar_file:
+        nama_pilihan = daftar_file[0]
+    url_pdf = f"/file-pdf/{nama_pilihan}" if nama_pilihan in daftar_file else None
+    return render_template_string(HTML_PDF_VIEWER, url_pdf=url_pdf, nama_file=nama_pilihan or "Pilih file PDF di bawah", daftar_file=daftar_file, is_admin=is_admin)
+
+@app.route('/upload-pdf', methods=['POST'])
+def upload_pdf():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    file = request.files.get('file_pdf')
+    if file and file.filename.endswith('.pdf'):
+        filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+        file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+        catat_log("UPLOAD PDF", f"Upload: {filename}")
+    return redirect('/baca-pdf')
+
+@app.route('/file-pdf/<path:filename>')
+def serve_uploaded_pdf(filename):
+    return send_from_directory(UPLOAD_PDF_FOLDER, filename)
 
 @app.route('/penulis')
-def profil_penulis():
-    return render_template_string(HTML_PENULIS)
+def tentang_penulis(): return render_template_string(HTML_PENULIS)
+@app.route('/catatan-penulis')
+def catatan_penulis(): return render_template_string(HTML_ESAI_PENULIS, esai_list=EsaiPenulis.query.order_by(EsaiPenulis.id.desc()).all(), is_admin=session.get('is_admin'))
+@app.route('/favorit')
+def halaman_favorit(): return render_template_string(HTML_FAVORIT, catatan_favorit=Catatan.query.filter_by(favorit=True).all())
+
+@app.route('/toggle-favorit/<int:catatan_id>', methods=['POST'])
+def toggle_favorit(catatan_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    catatan = Catatan.query.get_or_404(catatan_id)
+    catatan.favorit = not catatan.favorit
+    db.session.commit()
+    return redirect(f'/buku/{catatan.buku_id}')
+
+@app.route('/tandai-baca/<int:catatan_id>', methods=['POST'])
+def tandai_baca(catatan_id):
+    catatan = Catatan.query.get_or_404(catatan_id)
+    PenandaBaca.query.filter_by(buku_id=catatan.buku_id).delete()
+    db.session.add(PenandaBaca(buku_id=catatan.buku_id, catatan_id=catatan.id))
+    db.session.commit()
+    return redirect(f'/buku/{catatan.buku_id}')
+
+@app.route('/cetak-esai-pdf/<int:esai_id>')
+def cetak_esai_pdf(esai_id):
+    esai = EsaiPenulis.query.get_or_404(esai_id)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    story = [Paragraph(f"<b>{escape(esai.judul)}</b>", styles['Heading1']), Paragraph(bersihkan_teks_pdf(esai.isi), styles['Normal'])]
+    doc.build(story)
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"esai_{esai.id}.pdf", mimetype='application/pdf')
+
+@app.route('/tambah-esai', methods=['POST'])
+def tambah_esai():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    db.session.add(EsaiPenulis(judul=request.form.get('judul', '').strip(), kategori=request.form.get('kategori', 'Refleksi').strip(), isi=request.form.get('isi', '').strip()))
+    db.session.commit()
+    return redirect('/catatan-penulis')
+
+@app.route('/tema/<int:tema_id>')
+def detail_tema(tema_id):
+    tema = Tema.query.get_or_404(tema_id)
+    buku_list = Buku.query.filter_by(tema_id=tema_id).all()
+    semua_tema = Tema.query.order_by(Tema.nama.asc()).all()
+    return render_template_string(HTML_TEMA, tema=tema, buku_list=buku_list, semua_tema=semua_tema, is_admin=session.get('is_admin'))
+
+@app.route('/tambah-tema', methods=['POST'])
+def tambah_tema():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    nama = request.form.get('nama', '').strip()
+    if nama:
+        db.session.add(Tema(nama=nama))
+        db.session.commit()
+    return redirect('/')
+
+@app.route('/hapus-tema/<int:tema_id>', methods=['POST'])
+def hapus_tema(tema_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    tema = Tema.query.get(tema_id)
+    if tema:
+        db.session.delete(tema)
+        db.session.commit()
+    return redirect('/')
+
+@app.route('/tambah-buku', methods=['POST'])
+def tambah_buku():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    judul = request.form.get('judul', '').strip()
+    tema_id = request.form.get('tema_id')
+    cover_url = request.form.get('cover_url', '').strip()
+    if judul and tema_id:
+        db.session.add(Buku(
+            judul=judul, 
+            subjudul=request.form.get('subjudul', '').strip(), 
+            tema_id=int(tema_id), 
+            kutipan=request.form.get('kutipan', '').strip(),
+            cover_url=cover_url
+        ))
+        db.session.commit()
+    return redirect(f'/tema/{tema_id}')
+
+@app.route('/edit-buku/<int:buku_id>', methods=['POST'])
+def edit_buku(buku_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku = Buku.query.get_or_404(buku_id)
+    buku.judul = request.form.get('judul', '').strip()
+    buku.subjudul = request.form.get('subjudul', '').strip()
+    buku.kutipan = request.form.get('kutipan', '').strip()
+    buku.cover_url = request.form.get('cover_url', '').strip()
+    db.session.commit()
+    catat_log("EDIT BUKU", f"Memperbarui buku: {buku.judul}")
+    return redirect(f'/buku/{buku.id}')
+
+@app.route('/pindah-tema-buku/<int:buku_id>', methods=['POST'])
+def pindah_tema_buku(buku_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku = Buku.query.get_or_404(buku_id)
+    tema_baru_id = request.form.get('tema_baru_id')
+    if tema_baru_id:
+        buku.tema_id = int(tema_baru_id)
+        db.session.commit()
+        catat_log("PINDAH TEMA", f"Memindahkan buku '{buku.judul}' ke tema ID {tema_baru_id}")
+    return redirect(f'/tema/{buku.tema_id}')
+
+@app.route('/hapus-buku/<int:buku_id>/<int:tema_id>', methods=['POST'])
+def hapus_buku(buku_id, tema_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku = Buku.query.get(buku_id)
+    if buku:
+        masukkan_sampah('buku', {'judul': buku.judul, 'subjudul': buku.subjudul})
+        db.session.delete(buku)
+        db.session.commit()
+        catat_log("HAPUS BUKU", f"Menghapus buku: {buku.judul}")
+    return redirect(f'/tema/{tema_id}')
+
+@app.route('/buku/<int:buku_id>')
+def detail_buku(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    catatan_list = Catatan.query.filter_by(buku_id=buku_id).order_by(Catatan.urutan.asc(), Catatan.id.asc()).all()
+    penanda_aktif = PenandaBaca.query.filter_by(buku_id=buku_id).first()
+    
+    catatan_grouped = defaultdict(list)
+    for c in catatan_list:
+        bagian_key = c.bagian if c.bagian else 'Bagian Utama'
+        catatan_grouped[bagian_key].append(c)
+
+    return render_template_string(HTML_BUKU_DETAIL, buku=buku, catatan_list=catatan_list, catatan_grouped=dict(catatan_grouped), is_admin=session.get('is_admin'), penanda_aktif=penanda_aktif)
+
+@app.route('/ubah-urutan-bab/<int:buku_id>', methods=['POST'])
+def ubah_urutan_bab(buku_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    catatan_ids = request.form.getlist('catatan_ids[]')
+    urutan_vals = request.form.getlist('urutan_vals[]')
+    
+    for c_id, u_val in zip(catatan_ids, urutan_vals):
+        catatan = Catatan.query.get(c_id)
+        if catatan:
+            try:
+                catatan.urutan = int(u_val)
+            except ValueError:
+                pass
+    db.session.commit()
+    catat_log("URUTAN BAB", f"Mengubah urutan bab buku ID: {buku_id}")
+    return redirect(f'/buku/{buku_id}')
+
+@app.route('/tambah-catatan', methods=['POST'])
+def tambah_catatan():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    buku_id = request.form.get('buku_id')
+    judul_bab = request.form.get('judul_bab', '').strip()
+    isi = request.form.get('isi', '').strip()
+    bagian = request.form.get('bagian', '').strip()
+    urutan_val = request.form.get('urutan', 1)
+    file_audio_input = request.form.get('file_audio', '').strip()
+
+    try:
+        urutan_val = int(urutan_val)
+    except ValueError:
+        urutan_val = 1
+
+    file_audio_converted = convert_gdrive_url(file_audio_input)
+
+    if buku_id and judul_bab and isi:
+        db.session.add(Catatan(
+            buku_id=int(buku_id), 
+            bagian=bagian, 
+            judul_bab=judul_bab, 
+            isi=isi,
+            urutan=urutan_val,
+            file_audio=file_audio_converted
+        ))
+        db.session.commit()
+        catat_log("TAMBAH BAB", f"Menambahkan bab: {judul_bab}")
+    return redirect(f'/buku/{buku_id}')
+
+@app.route('/edit-catatan/<int:catatan_id>', methods=['POST'])
+def edit_catatan(catatan_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    catatan = Catatan.query.get_or_404(catatan_id)
+    catatan.bagian = request.form.get('bagian', '').strip()
+    catatan.judul_bab = request.form.get('judul_bab', '').strip()
+    catatan.isi = request.form.get('isi', '').strip()
+    
+    file_audio_input = request.form.get('file_audio', '').strip()
+    catatan.file_audio = convert_gdrive_url(file_audio_input)
+    
+    urutan_val = request.form.get('urutan')
+    if urutan_val:
+        try:
+            catatan.urutan = int(urutan_val)
+        except ValueError:
+            pass
+
+    db.session.commit()
+    catat_log("EDIT BAB", f"Memperbarui bab: {catatan.judul_bab}")
+    return redirect(f'/buku/{catatan.buku_id}')
+
+@app.route('/hapus-catatan/<int:catatan_id>/<int:buku_id>', methods=['POST'])
+def hapus_catatan(catatan_id, buku_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    catatan = Catatan.query.get(catatan_id)
+    if catatan:
+        db.session.delete(catatan)
+        db.session.commit()
+    return redirect(f'/buku/{buku_id}')
+
+@app.route('/export-buku/<int:buku_id>')
+def export_buku(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    teks = f"JUDUL: {buku.judul}\n" + "\n".join([f"[{c.bagian}] {c.judul_bab}\n{c.isi}\n" for c in buku.catatan_list])
+    return Response(teks, mimetype='text/plain', headers={'Content-Disposition': f'attachment;filename={buku.judul}.txt'})
+
+@app.route('/export-buku-docx/<int:buku_id>')
+def export_buku_docx(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    doc = Document()
+    doc.add_heading(buku.judul.upper(), level=0)
+    if buku.subjudul: doc.add_paragraph(buku.subjudul)
+    doc.add_page_break()
+
+    for c in buku.catatan_list:
+        doc.add_heading(c.judul_bab, level=2)
+        for p in c.isi.split('\n'):
+            if p.strip(): doc.add_paragraph(p.strip())
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
+    return send_file(buffer, as_attachment=True, download_name=f"{filename}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+@app.route('/export-buku-epub/<int:buku_id>')
+def export_buku_epub(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    book = epub.EpubBook()
+    book.set_identifier(f'buku-{buku.id}')
+    book.set_title(buku.judul)
+    book.set_language('id')
+    book.add_author('Dede Suhendra')
+
+    chapters = []
+    for idx, c in enumerate(buku.catatan_list):
+        ch = epub.EpubHtml(title=c.judul_bab, file_name=f'chap_{idx+1}.xhtml', lang='id')
+        isi_html = f"<h2>{escape(c.judul_bab)}</h2>"
+        for p in c.isi.split('\n'):
+            if p.strip(): isi_html += f"<p>{escape(p.strip())}</p>"
+        ch.content = isi_html
+        book.add_item(ch)
+        chapters.append(ch)
+
+    book.toc = tuple(chapters)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ['nav'] + chapters
+
+    buffer = BytesIO()
+    epub.write_epub(buffer, book, {})
+    buffer.seek(0)
+    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
+    return send_file(buffer, as_attachment=True, download_name=f"{filename}.epub", mimetype='application/epub+zip')
+
+# Ekspor PDF Buku Terproteksi Anti-Crash
+@app.route('/export-buku-pdf/<int:buku_id>')
+def export_buku_pdf(buku_id):
+    buku = Buku.query.get_or_404(buku_id)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    
+    styles = getSampleStyleSheet()
+    
+    style_cover_title = ParagraphStyle('CoverTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=30, alignment=TA_CENTER)
+    style_cover_sub = ParagraphStyle('CoverSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=18, alignment=TA_CENTER)
+    style_cover_quote = ParagraphStyle('CoverQuote', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=10, leading=14, alignment=TA_CENTER)
+    style_bagian = ParagraphStyle('BagianHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=13, leading=17, spaceBefore=15, spaceAfter=6)
+    style_bab_title = ParagraphStyle('BabTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, leading=15, spaceBefore=10, spaceAfter=4)
+    style_bab_body = ParagraphStyle('BabBody', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=14, alignment=TA_JUSTIFY, spaceAfter=10)
+
+    story = []
+    story.append(Spacer(1, 120))
+    story.append(Paragraph(f"<b>{escape(buku.judul.upper())}</b>", style_cover_title))
+    story.append(Spacer(1, 15))
+    if buku.subjudul:
+        story.append(Paragraph(escape(buku.subjudul), style_cover_sub))
+        story.append(Spacer(1, 20))
+    story.append(Paragraph("Disusun oleh: Dede Suhendra", style_cover_sub))
+    story.append(Spacer(1, 40))
+    if buku.kutipan:
+        story.append(Paragraph(f'"{escape(buku.kutipan)}"', style_cover_quote))
+    story.append(PageBreak())
+
+    last_bagian = None
+    for c in buku.catatan_list:
+        if c.bagian and c.bagian != last_bagian:
+            last_bagian = c.bagian
+            story.append(Paragraph(f"<b>{escape(last_bagian)}</b>", style_bagian))
+        
+        story.append(Paragraph(f"<b>{escape(c.judul_bab)}</b>", style_bab_title))
+        isi_pdf_aman = bersihkan_teks_pdf(c.isi)
+        story.append(Paragraph(isi_pdf_aman, style_bab_body))
+        story.append(Spacer(1, 8))
+
+    doc.build(story)
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"{re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)}.pdf", mimetype='application/pdf')
+
+@app.route('/statistik')
+def statistik():
+    return render_template_string(HTML_STATISTIK, total_buku=Buku.query.count(), total_catatan=Catatan.query.count())
+
+@app.route('/tong-sampah')
+def tong_sampah(): return render_template_string(HTML_TONG_SAMPAH, sampah_list=TongSampah.query.all())
+
+@app.route('/riwayat-log')
+def riwayat_log():
+    if not session.get('is_admin'): return redirect('/login')
+    return render_template_string(HTML_LOG, logs=LogAktivitas.query.order_by(LogAktivitas.id.desc()).limit(50).all())
+
+@app.route('/pulihkan/<int:item_id>')
+def pulihkan(item_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    item = TongSampah.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    return redirect('/tong-sampah')
+
+@app.route('/hapus-permanen/<int:item_id>')
+def hapus_permanen(item_id):
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    db.session.delete(TongSampah.query.get_or_404(item_id))
+    db.session.commit()
+    return redirect('/tong-sampah')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    error = None
     if request.method == 'POST':
-        ip = request.remote_addr
-        if not cek_rate_limit_login(ip):
-            error = "Terlalu banyak percobaan login. Silakan tunggu 1 menit."
-            return render_template_string(HTML_LOGIN, error=error)
-            
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        if username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
+        if not cek_rate_limit_login(request.remote_addr):
+            return "Terlalu banyak percobaan login. Coba lagi 1 menit kemudian.", 429
+        if request.form.get('username') == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form.get('password')):
             session['is_admin'] = True
-            catat_log("Login Admin", f"IP: {ip}")
             return redirect('/')
-        else:
-            error = "Username atau password salah."
-    return render_template_string(HTML_LOGIN, error=error)
+        return render_template_string(HTML_LOGIN, error="Salah password!")
+    return render_template_string(HTML_LOGIN, error=None)
 
 @app.route('/logout')
 def logout():
     session.pop('is_admin', None)
     return redirect('/')
 
-@app.route('/jurnal')
-def koleksi_jurnal():
-    jurnal_list = Jurnal.query.order_by(Jurnal.tanggal_baca.desc()).all()
-    is_admin = session.get('is_admin', False)
-    return render_template_string(HTML_JURNAL, jurnal_list=jurnal_list, is_admin=is_admin)
+@app.route('/backup')
+def backup_db():
+    if not session.get('is_admin'): return "Akses Ditolak", 403
+    data = {
+        "tema": [{"id": t.id, "nama": t.nama} for t in Tema.query.all()],
+        "buku": [{"id": b.id, "judul": b.judul, "subjudul": b.subjudul, "cover_url": b.cover_url, "tema_id": b.tema_id, "kutipan": b.kutipan} for b in Buku.query.all()],
+        "catatan": [{"id": c.id, "bagian": c.bagian, "judul_bab": c.judul_bab, "isi": c.isi, "buku_id": c.buku_id, "urutan": c.urutan, "file_audio": c.file_audio} for c in Catatan.query.all()],
+        "esai": [{"id": e.id, "judul": e.judul, "kategori": e.kategori, "isi": e.isi} for e in EsaiPenulis.query.all()],
+        "jurnal": [{"id": j.id, "judul": j.judul, "penulis": j.penulis, "kategori": j.kategori, "poin_penting": j.poin_penting, "file_pdf": j.file_pdf} for j in Jurnal.query.all()]
+    }
+    return Response(json.dumps(data, indent=2), mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=backup_karya.json'})
 
-@app.route('/tambah-jurnal', methods=['POST'])
-def tambah_jurnal():
+@app.route('/restore', methods=['POST'])
+def restore_db():
     if not session.get('is_admin'):
-        return redirect('/')
-    judul = request.form.get('judul')
-    penulis = request.form.get('penulis')
-    kategori = request.form.get('kategori') or "Umum"
-    poin_penting = request.form.get('poin_penting')
-    
-    filename = None
-    file = request.files.get('file_pdf')
-    if file and file.filename.endswith('.pdf'):
-        filename = f"{int(time.time())}_{file.filename}"
-        file.save(os.path.join(UPLOAD_PDF_FOLDER, filename))
+        return "Akses Ditolak", 403
+    file = request.files.get('file_json')
+    if file:
+        try:
+            data = json.load(file)
+            for t in data.get('tema', []):
+                if not Tema.query.get(t['id']):
+                    db.session.add(Tema(id=t['id'], nama=t['nama']))
+            for b in data.get('buku', []):
+                if not Buku.query.get(b['id']):
+                    db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), cover_url=b.get('cover_url'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+            for c in data.get('catatan', []):
+                if not Catatan.query.get(c['id']):
+                    db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
+            for e in data.get('esai', []):
+                if not EsaiPenulis.query.get(e['id']):
+                    db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+            for j in data.get('jurnal', []):
+                if not Jurnal.query.get(j['id']):
+                    db.session.add(Jurnal(id=j['id'], judul=j['judul'], penulis=j.get('penulis'), kategori=j.get('kategori', 'Umum'), poin_penting=j['poin_penting'], file_pdf=j.get('file_pdf')))
+            db.session.commit()
+            catat_log("RESTORE DATABASE", "Melakukan restore data dari file JSON")
+            app.logger.info("Database berhasil di-restore dari file JSON.")
+        except Exception as err:
+            db.session.rollback()
+            app.logger.error(f"Gagal restore database: {str(err)}")
+    return redirect('/')
 
-    jurnal_baru = Jurnal(
-        judul=judul,
-        penulis=penulis,
-        kategori=kategori,
-        poin_penting=poin_penting,
-        file_pdf=filename
-    )
-    db.session.add(jurnal_baru)
-    db.session.commit()
-    catat_log("Tambah Jurnal", f"Judul: {judul}")
-    return redirect('/jurnal')
-
-@app.route('/buku/<int:buku_id>')
-def detail_buku(buku_id):
-    buku = Buku.query.get_or_404(buku_id)
-    catatan_list = Catatan.query.filter_by(buku_id=buku.id).order_by(Catatan.urutan.asc()).all()
-    
-    catatan_grouped = defaultdict(list)
-    for c in catatan_list:
-        bagian = c.bagian if c.bagian else "Utama"
-        catatan_grouped[bagian].append(c)
-
-    penanda_aktif = PenandaBaca.query.filter_by(buku_id=buku.id).first()
-    is_admin = session.get('is_admin', False)
-    
-    return render_template_string(
-        HTML_BUKU_DETAIL,
-        buku=buku,
-        catatan_list=catatan_list,
-        catatan_grouped=catatan_grouped,
-        penanda_aktif=penanda_aktif,
-        is_admin=is_admin
-    )
-
-@app.route('/tema/<int:tema_id>')
-def detail_tema(tema_id):
-    tema = Tema.query.get_or_404(tema_id)
-    buku_list = Buku.query.filter_by(tema_id=tema.id).all()
-    semua_tema = Tema.query.all()
-    is_admin = session.get('is_admin', False)
-    return render_template_string(HTML_TEMA, tema=tema, buku_list=buku_list, semua_tema=semua_tema, is_admin=is_admin)
-
-@app.route('/catatan-penulis')
-def esai_penulis():
-    esai_list = EsaiPenulis.query.order_by(EsaiPenulis.dibuat_pada.desc()).all()
-    is_admin = session.get('is_admin', False)
-    return render_template_string(HTML_ESAI_PENULIS, esai_list=esai_list, is_admin=is_admin)
-
-@app.route('/tambah-catatan', methods=['POST'])
-def tambah_catatan():
-    if not session.get('is_admin'):
-        return redirect('/')
-    buku_id = request.form.get('buku_id')
-    bagian = request.form.get('bagian')
-    judul_bab = request.form.get('judul_bab')
-    isi = request.form.get('isi')
-    urutan = int(request.form.get('urutan', 1))
-    file_audio = convert_gdrive_url(request.form.get('file_audio'))
-
-    c = Catatan(buku_id=buku_id, bagian=bagian, judul_bab=judul_bab, isi=isi, urutan=urutan, file_audio=file_audio)
-    db.session.add(c)
-    db.session.commit()
-    return redirect(f'/buku/{buku_id}')
-
-@app.route('/cari')
-def cari():
-    q = request.args.get('q', '')
-    hasil_catatan = Catatan.query.filter((Catatan.isi.ilike(f'%{q}%')) | (Catatan.judul_bab.ilike(f'%{q}%'))).all()
-    hasil_jurnal = Jurnal.query.filter((Jurnal.poin_penting.ilike(f'%{q}%')) | (Jurnal.judul.ilike(f'%{q}%'))).all()
-    hasil_esai = EsaiPenulis.query.filter((EsaiPenulis.isi.ilike(f'%{q}%')) | (EsaiPenulis.judul.ilike(f'%{q}%'))).all()
-    return render_template_string(
-        HTML_HASIL_CARI, 
-        query=q, 
-        hasil_catatan=hasil_catatan, 
-        hasil_jurnal=hasil_jurnal, 
-        hasil_esai=hasil_esai
-    )
-
-@app.route('/baca-pdf')
-def viewer_pdf():
-    nama_file = request.args.get('nama', 'Pilih file PDF di bawah')
-    daftar_file = os.listdir(UPLOAD_PDF_FOLDER)
-    url_pdf = None
-    if nama_file != 'Pilih file PDF di bawah' and nama_file in daftar_file:
-        url_pdf = f"/file-pdf/{nama_file}"
-    is_admin = session.get('is_admin', False)
-    return render_template_string(HTML_PDF_VIEWER, nama_file=nama_file, daftar_file=daftar_file, url_pdf=url_pdf, is_admin=is_admin)
-
-@app.route('/file-pdf/<filename>')
-def serve_pdf(filename):
-    return send_from_directory(UPLOAD_PDF_FOLDER, filename)
-
-@app.route('/favorit')
-def favorit_page():
-    catatan_favorit = Catatan.query.filter_by(favorit=True).all()
-    return render_template_string(HTML_FAVORIT, catatan_favorit=catatan_favorit)
-
-@app.route('/tandai-baca/<int:catatan_id>', methods=['POST'])
-def tandai_baca(catatan_id):
-    catatan = Catatan.query.get_or_404(catatan_id)
-    PenandaBaca.query.filter_by(buku_id=catatan.buku_id).delete()
-    penanda = PenandaBaca(buku_id=catatan.buku_id, catatan_id=catatan_id)
-    db.session.add(penanda)
-    db.session.commit()
-    return redirect(f'/buku/{catatan.buku_id}#bab-{catatan_id}')
-
-# ==================================================
-# RUN APP SERVER
-# ==================================================
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
