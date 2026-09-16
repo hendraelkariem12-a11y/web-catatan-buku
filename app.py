@@ -573,7 +573,7 @@ HTML_DONATION_WIDGET = """
         <div class="donation-payment-item">
             <div>
                 <strong class="d-block text-warning small">Bank BRI</strong>
-                <span class="fw-bold" id="rek-bri">1234-01-000000-50-0</span>
+                <span class="fw-bold" id="rek-bri">4394 0104 0228 538</span>
                 <small class="d-block text-muted" style="font-size:11px;">a.n. Dede Suhendra</small>
             </div>
             <button type="button" class="btn btn-sm btn-outline-warning rounded-pill" onclick="copyRekening('rek-bri')">Salin</button>
