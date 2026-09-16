@@ -1591,48 +1591,7 @@ HTML_TEMA = """
 </html>
 """
 
-HTML_PENULIS = """
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil Penulis - Dede Suhendra</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>""" + CSS_SHARED + """</style>
-    """ + JS_THEME_SCRIPT + """
-</head>
-<body>
-<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
-    <i class="fa-solid fa-moon" id="icon-mode"></i>
-</button>
 
-<div class="container py-5" style="max-width:760px;">
-    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-3 fw-bold">&larr; Kembali ke Utama</a>
-    
-    <div class="card-gold p-4 mb-4 rounded-4" style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
-        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" style="width:140px; height:140px; border-radius:50%; object-fit:cover; border:3px solid #b38728; margin:0 auto; display:block;">
-        <div style="flex:1; min-width:250px;">
-            <h2 class="h4 fw-bold text-warning mb-2" style="font-family:'Cinzel',serif;">👨‍💻 Profil Penulis</h2>
-            <p class="small mb-2">Selamat datang di ruang pustaka pribadi karya dan catatan saya. Nama saya <strong>Dede Suhendra</strong>, lahir 8 Juli 2001, dari Subang.</p>
-            <p class="small text-muted mb-0">Dokumentasi pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun terstruktur.</p>
-        </div>
-    </div>
-    
-    <div class="card-gold p-4 mb-4 rounded-4">
-        <h4 class="h5 fw-bold text-warning mb-3">✍️ Perjuangan & Latar Belakang Penulisan</h4>
-        <p class="small mb-2">Setiap tulisan lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian, setiap sisa waktu luang dimanfaatkan untuk tetap konsisten menulis dan mendokumentasikan ilmu.</p>
-        <p class="small text-muted mb-0">Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana merefleksikan pembelajaran hidup agar bermanfaat secara luas dan berkelanjutan.</p>
-    </div>
-    
-    <div class="card-gold p-4 mb-4 rounded-4">
-        <h4 class="h5 fw-bold text-warning mb-3">📜 Riwayat Pendidikan & Pengalaman</h4>
-        <h6 class="fw-bold text-warning small mb-2">🎓 Pendidikan:</h6>
-        <div style="border-left:2px solid var(--border-color); padding-left:15px; margin-bottom:15px;" class="small">
-            <div class="mb-2"><strong>2013:</strong> SDN Sindang Laut II (Lulus SD)</div>
-            <div class="mb-2"><strong>2013–2015:</strong> Ponpes Madinatul Musthofa</div>
-            <div class="mb-2"><strong>2015–2016:</strong> Pondok Tahfidz Qur'an (Fokus Hafalan)</div>
 HTML_PENULIS = """
 <!DOCTYPE html>
 <html lang="id">
