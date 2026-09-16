@@ -1633,47 +1633,332 @@ HTML_PENULIS = """
             <div class="mb-2"><strong>2013:</strong> SDN Sindang Laut II (Lulus SD)</div>
             <div class="mb-2"><strong>2013–2015:</strong> Ponpes Madinatul Musthofa</div>
             <div class="mb-2"><strong>2015–2016:</strong> Pondok Tahfidz Qur'an (Fokus Hafalan)</div>
-            <div class="mb-2"><strong>2016–2019:</strong> Ponpes Madinatul Musthofa</div>
-            <div class="mb-2"><strong>2019–2022:</strong> Pondok Modern Darussalam Gontor (KMI)</div>
-            <div class="mb-2"><strong>2022–2023:</strong> Pengabdian Gontor & UNIDA Gontor</div>
-            <div><strong>2023–2025:</strong> Pengajar Ponpes & STISQ AL-IHYA Subang</div>
+HTML_PENULIS = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Penulis - Dede Suhendra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>""" + CSS_SHARED + """
+    /* STYLING ESTETIK PROFIL */
+    .profile-hero-card {
+        background: var(--card-paper);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        padding: 35px 25px;
+        text-align: center;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+        position: relative;
+        overflow: hidden;
+    }
+    .profile-hero-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 6px;
+        background: var(--gold-gradient);
+    }
+    .profile-img-lg {
+        width: 130px;
+        height: 130px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #b38728;
+        padding: 4px;
+        background: var(--card-paper);
+        box-shadow: 0 10px 25px rgba(212, 175, 55, 0.3);
+        margin: 0 auto 18px auto;
+        display: block;
+        transition: transform 0.3s ease;
+    }
+    .profile-img-lg:hover {
+        transform: scale(1.05);
+    }
+    
+    /* STYLING TIMELINE ELEGAND */
+    .timeline-container {
+        position: relative;
+        padding-left: 25px;
+        margin-top: 15px;
+    }
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        left: 7px;
+        top: 5px;
+        bottom: 5px;
+        width: 2px;
+        background: rgba(179, 135, 40, 0.3);
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 18px;
+    }
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+    .timeline-dot {
+        position: absolute;
+        left: -23px;
+        top: 4px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #b38728;
+        border: 2px solid var(--card-paper);
+        box-shadow: 0 0 8px rgba(179, 135, 40, 0.6);
+    }
+    .timeline-year {
+        font-weight: 800;
+        color: #b38728 !important;
+        font-size: 13px;
+        margin-right: 6px;
+    }
+
+    /* CARD GRID APRESIASI */
+    .appreciation-card {
+        background: rgba(179, 135, 40, 0.05);
+        border: 1px solid var(--border-color) !important;
+        border-radius: 16px;
+        padding: 16px;
+        height: 100%;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .appreciation-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    .icon-box-gold {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(179, 135, 40, 0.15);
+        color: #b38728;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+    </style>
+    """ + JS_THEME_SCRIPT + """
+</head>
+<body>
+<button class="btn btn-mode-toggle" onclick="toggleModeInstan()" title="Ganti Mode Tampilan">
+    <i class="fa-solid fa-moon" id="icon-mode"></i>
+</button>
+
+<div class="container py-5" style="max-width:780px;">
+    <a href="/" class="btn btn-custom-outline btn-sm mb-4 rounded-pill px-4 fw-bold shadow-sm">
+        <i class="fa-solid fa-arrow-left me-2"></i>Kembali ke Utama
+    </a>
+    
+    <!-- HEADER HERO PROFIL -->
+    <div class="profile-hero-card mb-4">
+        <img src="/profile.jpg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" alt="Dede Suhendra" class="profile-img-lg">
+        <h2 class="h3 fw-bold mb-1" style="font-family:'Cinzel',serif; color:#b38728 !important;">Dede Suhendra</h2>
+        <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold mb-3" style="font-size:11px; letter-spacing:1px;">PENULIS & PENGELOLA VAULT</span>
+        <p class="small text-muted max-w-lg mx-auto mb-2" style="max-width: 550px; line-height:1.6;">
+            Lahir pada 8 Juli 2001 di Subang. Selamat datang di ruang pustaka pribadi karya, catatan pemikiran, perjalanan belajar, riset harian, serta modul pembelajaran yang disusun terstruktur.
+        </p>
+    </div>
+
+    <!-- PERJUANGAN & LATAR BELAKANG -->
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <div class="d-flex align-items-center mb-3">
+            <div class="icon-box-gold me-3 mb-0"><i class="fa-solid fa-pen-nib fs-5"></i></div>
+            <h4 class="h5 fw-bold mb-0 text-warning" style="font-family:'Cinzel',serif;">Perjuangan & Latar Belakang</h4>
         </div>
-        <h6 class="fw-bold text-warning small mb-2">💼 Pengalaman Kerja & Khidmat:</h6>
-        <div style="border-left:2px solid var(--border-color); padding-left:15px;" class="small">
-            <div class="mb-2"><strong>2025:</strong> Gudang Shopee Tangerang (Logistik)</div>
-            <div class="mb-2"><strong>2025:</strong> Karyawan Fotokopi Jakarta Pusat</div>
-            <div class="mb-2"><strong>2025:</strong> Barista & Chef Bogor</div>
-            <div><strong>Sekarang:</strong> Imam, Muadzin & Pengajar Al-Qur'an Tangerang</div>
+        <p class="small mb-2" style="line-height:1.7;">
+            Setiap tulisan lahir dari proses yang tidak instan. Di tengah padatnya aktivitas harian, setiap sisa waktu luang dimanfaatkan secara konsisten untuk merangkai kata dan mendokumentasikan ilmu.
+        </p>
+        <p class="small text-muted mb-0" style="line-height:1.7;">
+            Bagi saya, menulis bukan sekadar merangkai kata, melainkan bentuk pengikatan ilmu dan sarana merefleksikan pembelajaran hidup agar memberikan manfaat secara luas dan berkelanjutan.
+        </p>
+    </div>
+
+    <!-- RIWAYAT PENDIDIKAN & PENGALAMAN -->
+    <div class="card-gold p-4 mb-4 rounded-4">
+        <div class="d-flex align-items-center mb-4">
+            <div class="icon-box-gold me-3 mb-0"><i class="fa-solid fa-graduation-cap fs-5"></i></div>
+            <h4 class="h5 fw-bold mb-0 text-warning" style="font-family:'Cinzel',serif;">Riwayat JEJAK & Khidmat</h4>
+        </div>
+
+        <div class="row g-4">
+            <!-- PENDIDIKAN -->
+            <div class="col-md-6">
+                <h6 class="fw-bold text-warning small mb-3 d-flex align-items-center">
+                    <i class="fa-solid fa-book-open-reader me-2"></i>Pendidikan & Pesantren
+                </h6>
+                <div class="timeline-container">
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2013</span>
+                        <span class="small">SDN Sindang Laut II</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2013–2015</span>
+                        <span class="small">Ponpes Madinatul Musthofa</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2015–2016</span>
+                        <span class="small">Pondok Tahfidz Qur'an (Fokus Hafalan)</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2016–2019</span>
+                        <span class="small">Ponpes Madinatul Musthofa</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2019–2022</span>
+                        <span class="small">Pondok Modern Darussalam Gontor (KMI)</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2022–2023</span>
+                        <span class="small">Pengabdian Gontor & UNIDA Gontor</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2023–2025</span>
+                        <span class="small">Pengajar Ponpes & STISQ AL-IHYA Subang</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PENGALAMAN -->
+            <div class="col-md-6">
+                <h6 class="fw-bold text-warning small mb-3 d-flex align-items-center">
+                    <i class="fa-solid fa-briefcase me-2"></i>Pengalaman Kerja & Khidmat
+                </h6>
+                <div class="timeline-container">
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2025</span>
+                        <span class="small">Gudang Shopee Tangerang (Logistik)</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2025</span>
+                        <span class="small">Karyawan Fotokopi Jakarta Pusat</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">2025</span>
+                        <span class="small">Barista & Chef Bogor</span>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <span class="timeline-year">Sekarang</span>
+                        <span class="small font-weight-bold text-success">Imam, Muadzin & Pengajar Al-Qur'an Tangerang</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
+    <!-- VISI & MISI -->
     <div class="card-gold p-4 mb-4 rounded-4">
-        <h4 class="h5 fw-bold text-warning mb-3">🎯 Visi & Misi Penulisan</h4>
-        <p class="small mb-2"><strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri berkelanjutan, dan ladang manfaat terstruktur.</p>
-        <p class="small fw-bold mb-1">Misi:</p>
-        <ul class="small text-muted ps-3 mb-0">
+        <div class="d-flex align-items-center mb-3">
+            <div class="icon-box-gold me-3 mb-0"><i class="fa-solid fa-bullseye fs-5"></i></div>
+            <h4 class="h5 fw-bold mb-0 text-warning" style="font-family:'Cinzel',serif;">Visi & Misi Penulisan</h4>
+        </div>
+        <div class="p-3 rounded-3 mb-3" style="background: rgba(179, 135, 40, 0.08); border-left: 4px solid #b38728;">
+            <p class="small mb-0" style="line-height:1.6;">
+                <strong>Visi:</strong> Menjadikan dokumentasi catatan pribadi sebagai sarana pengikat ilmu, pengembangan diri berkelanjutan, dan ladang manfaat terstruktur.
+            </p>
+        </div>
+        <h6 class="fw-bold small mb-2 text-warning">Misi Utama:</h6>
+        <ul class="small text-muted ps-3 mb-0 d-flex flex-column gap-2" style="line-height:1.6;">
             <li>Memanfaatkan setiap sisa waktu luang secara produktif untuk merangkai karya tulis dan modul bermanfaat.</li>
             <li>Memdokumentasikan pemahaman keagamaan, riset harian, dan keterampilan operasional secara rapi dan terbuka.</li>
             <li>Terus belajar dan memberikan dampak positif bagi santri, jamaah masjid, serta lingkungan sekitar.</li>
         </ul>
     </div>
-    
+
+    <!-- APRESIASI & RASA SYUKUR -->
     <div class="card-gold p-4 rounded-4">
-        <h4 class="h5 fw-bold text-warning mb-3">🙏 Apresiasi & Rasa Syukur</h4>
-        <p class="small text-muted mb-3">Rasa syukur dan terima kasih kepada orang-orang terkasih yang menjadi sumber kekuatan, doa, dan inspirasi:</p>
+        <div class="d-flex align-items-center mb-3">
+            <div class="icon-box-gold me-3 mb-0"><i class="fa-solid fa-heart fs-5"></i></div>
+            <h4 class="h5 fw-bold mb-0 text-warning" style="font-family:'Cinzel',serif;">Apresiasi & Rasa Syukur</h4>
+        </div>
+        <p class="small text-muted mb-4">
+            Rasa syukur mendalam kepada orang-orang terkasih yang senantiasa menjadi sumber kekuatan, doa, dan inspirasi dalam setiap langkah kehidupan:
+        </p>
+
         <div class="row g-3">
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👨‍👦 Bapak Khairudin</strong><p class="small text-muted mb-0 mt-1">Doa, kerja keras, dan bimbingan tanpa henti.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">💐 Ibu Sumini (Almarhumah)</strong><p class="small text-muted mb-0 mt-1">Semoga Allah mengampuni dan menempatkan di tempat terbaik.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👫 Siti Aisyah & Muhammad Naimul Ilmi</strong><p class="small text-muted mb-0 mt-1">Adik-adik tersayang, kebanggaan dan penyemangat.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">👦 Muhammad Aji</strong><p class="small text-muted mb-0 mt-1">Kakak tercinta atas kebersamaan dan dukungan.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">❤️ Sri Nur Safitri</strong><p class="small text-muted mb-0 mt-1">Perhatian, dorongan semangat, dan pendamping setia.</p></div></div>
-            <div class="col-md-6"><div class="p-3 border rounded-3 h-100" style="border-color:var(--border-color)!important;"><strong class="text-warning">🤝 Sahabat & Kolega</strong><p class="small text-muted mb-0 mt-1">Semua yang telah mendukung dan mendoakan.</p></div></div>
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-user-tie text-warning"></i>
+                        <strong class="text-warning small">Bapak Khairudin</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Doa, kerja keras, dan bimbingan tanpa henti.</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-hands-praying text-warning"></i>
+                        <strong class="text-warning small">Ibu Sumini (Almarhumah)</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Semoga Allah mengampuni dan menempatkan beliau di surga-Nya.</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-people-group text-warning"></i>
+                        <strong class="text-warning small">Siti Aisyah & M. Naimul Ilmi</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Adik-adik tersayang, kebanggaan dan penyemangat.</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-user-shield text-warning"></i>
+                        <strong class="text-warning small">Muhammad Aji</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Kakak tercinta atas kebersamaan dan dukungannya.</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-heart text-danger"></i>
+                        <strong class="text-warning small">Sri Nur Safitri</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Perhatian, dorongan semangat, dan pendamping setia.</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="appreciation-card">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-handshake text-warning"></i>
+                        <strong class="text-warning small">Sahabat & Kolega</strong>
+                    </div>
+                    <p class="small text-muted mb-0">Semua pihak yang telah memberikan dukungan dan doa.</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 """ + HTML_DONATION_WIDGET + """
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 """
