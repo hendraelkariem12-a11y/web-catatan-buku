@@ -6,3 +6,4 @@ Flask-WTF
 gunicorn
 python-docx
 ebooklib
+psycopg2-binary
