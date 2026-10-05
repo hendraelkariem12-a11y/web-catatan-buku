@@ -85,13 +85,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
-# Pengaturan pooling koneksi agar stabil di environment Serverless Vercel
+# Pengaturan pooling khusus Serverless agar tidak crash/timeout
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
+    "connect_args": {
+        "sslmode": "require"
+    }
 }
-
-database_info = "Supabase PostgreSQL (Cloud Database)"
 
 db = SQLAlchemy(app)
 
