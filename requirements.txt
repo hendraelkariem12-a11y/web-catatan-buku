@@ -2,8 +2,9 @@ Flask
 Flask-SQLAlchemy
 Flask-WTF
 psycopg2-binary
-pg8000
+psycopg[binary]
 reportlab
 python-docx
-ebooklib
+EbookLib
+Pillow
 werkzeug
