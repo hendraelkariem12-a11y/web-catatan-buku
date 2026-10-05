@@ -21,7 +21,7 @@ from docx import Document
 from ebooklib import epub
 
 app = Flask(__name__)
-app.secret_key = 'karya-dede-suhendra-secret-key-2026-upgraded'
+app.secret_key = os.environ.get('SECRET_KEY', 'karya-dede-suhendra-secret-key-2026-upgraded')
 
 # ==================================================
 # KONFIGURASI KEAMANAN CSRF
@@ -62,9 +62,13 @@ def convert_gdrive_url(url):
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 # ==================================================
-# KONFIGURASI FOLDER PENYIMPANAN PDF AMAN
+# KONFIGURASI FOLDER PENYIMPANAN PDF AMAN (VERCEL SAFE)
 # ==================================================
-UPLOAD_PDF_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploaded_pdfs')
+if os.environ.get('VERCEL'):
+    UPLOAD_PDF_FOLDER = '/tmp/uploaded_pdfs'
+else:
+    UPLOAD_PDF_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploaded_pdfs')
+
 os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 
 # ==================================================
@@ -80,6 +84,12 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
+
+# Pengaturan pooling koneksi agar stabil di environment Serverless Vercel
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 
 database_info = "Supabase PostgreSQL (Cloud Database)"
 
@@ -162,39 +172,51 @@ class PenandaBaca(db.Model):
     buku = db.relationship('Buku', backref=db.backref('penanda', uselist=False, cascade="all, delete-orphan"))
     catatan = db.relationship('Catatan')
 
-with app.app_context():
-    db.create_all()
-    if Tema.query.count() == 0:
-        db.session.add_all([
-            Tema(nama='Filsafat'),
-            Tema(nama='Keuangan'),
-            Tema(nama='Komunikasi')
-        ])
-        db.session.commit()
-    
-    if Buku.query.count() == 0 and os.path.exists('backup_karya.json'):
-        try:
-            with open('backup_karya.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                for t in data.get('tema', []):
-                    if not Tema.query.get(t['id']):
-                        db.session.add(Tema(id=t['id'], nama=t['nama']))
-                for b in data.get('buku', []):
-                    if not Buku.query.get(b['id']):
-                        db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), cover_url=b.get('cover_url'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
-                for c in data.get('catatan', []):
-                    if not Catatan.query.get(c['id']):
-                        db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
-                for e in data.get('esai', []):
-                    if not EsaiPenulis.query.get(e['id']):
-                        db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
-                db.session.commit()
-                app.logger.info("Auto-restore database dari file backup_karya.json berhasil dilakukan.")
-        except Exception as err:
-            db.session.rollback()
-            app.logger.error(f"Gagal melakukan auto-restore: {str(err)}")
+# ==================================================
+# INISIALISASI DATABASE LAZY (CEK SAAT REQUEST PERTAMA)
+# ==================================================
+_db_initialized = False
 
-    app.logger.info(f"Database berhasil diinisialisasi menggunakan: {database_info}")
+@app.before_request
+def init_db_once():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            db.create_all()
+            if Tema.query.count() == 0:
+                db.session.add_all([
+                    Tema(nama='Filsafat'),
+                    Tema(nama='Keuangan'),
+                    Tema(nama='Komunikasi')
+                ])
+                db.session.commit()
+            
+            if Buku.query.count() == 0 and os.path.exists('backup_karya.json'):
+                try:
+                    with open('backup_karya.json', 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        for t in data.get('tema', []):
+                            if not Tema.query.get(t['id']):
+                                db.session.add(Tema(id=t['id'], nama=t['nama']))
+                        for b in data.get('buku', []):
+                            if not Buku.query.get(b['id']):
+                                db.session.add(Buku(id=b['id'], judul=b['judul'], subjudul=b.get('subjudul'), cover_url=b.get('cover_url'), tema_id=b['tema_id'], kutipan=b.get('kutipan')))
+                        for c in data.get('catatan', []):
+                            if not Catatan.query.get(c['id']):
+                                db.session.add(Catatan(id=c['id'], bagian=c.get('bagian'), judul_bab=c['judul_bab'], isi=c['isi'], buku_id=c['buku_id'], urutan=c.get('urutan', 1), file_audio=c.get('file_audio')))
+                        for e in data.get('esai', []):
+                            if not EsaiPenulis.query.get(e['id']):
+                                db.session.add(EsaiPenulis(id=e['id'], judul=e['judul'], kategori=e.get('kategori', 'Refleksi'), isi=e['isi']))
+                        db.session.commit()
+                        app.logger.info("Auto-restore database dari file backup_karya.json berhasil dilakukan.")
+                except Exception as err:
+                    db.session.rollback()
+                    app.logger.error(f"Gagal melakukan auto-restore: {str(err)}")
+
+            app.logger.info(f"Database berhasil diinisialisasi menggunakan: {database_info}")
+            _db_initialized = True
+        except Exception as e:
+            app.logger.error(f"Gagal memuat init database: {str(e)}")
 
 # ==================================================
 # ROUTE FILE MEDIA & STATIC (LOGO & MANIFEST PWA)
@@ -2447,3 +2469,4 @@ def restore_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
