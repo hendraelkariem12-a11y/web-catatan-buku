@@ -12,14 +12,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# ReportLab, Docx, & Ebooklib untuk Fitur Ekspor Dokumen
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-from docx import Document
-from ebooklib import epub
-
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'karya-dede-suhendra-secret-key-2026-upgraded')
 
@@ -85,14 +77,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
-# Pengaturan pooling khusus Serverless agar tidak crash/timeout
+# Connection Pool Settings untuk Vercel Serverless
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
-    "connect_args": {
-        "sslmode": "require"
-    }
 }
+
+database_info = "Supabase PostgreSQL (Cloud Database)"
 
 db = SQLAlchemy(app)
 
@@ -860,7 +851,6 @@ function filterKategori(nama) {
 </html>
 """
 
-# HTML TEMPLATE KOLEKSI JURNAL
 HTML_JURNAL = """
 <!DOCTYPE html>
 <html lang="id">
@@ -1614,7 +1604,6 @@ HTML_TEMA = """
 </html>
 """
 
-
 HTML_PENULIS = """
 <!DOCTYPE html>
 <html lang="id">
@@ -2097,8 +2086,13 @@ def tandai_baca(catatan_id):
     db.session.commit()
     return redirect(f'/buku/{catatan.buku_id}')
 
+# Import Lazy untuk ReportLab, Docx, & EbookLib agar Vercel tidak error saat startup
 @app.route('/cetak-esai-pdf/<int:esai_id>')
 def cetak_esai_pdf(esai_id):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph
+    from reportlab.lib.styles import getSampleStyleSheet
+
     esai = EsaiPenulis.query.get_or_404(esai_id)
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -2107,6 +2101,105 @@ def cetak_esai_pdf(esai_id):
     doc.build(story)
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name=f"esai_{esai.id}.pdf", mimetype='application/pdf')
+
+@app.route('/export-buku-pdf/<int:buku_id>')
+def export_buku_pdf(buku_id):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+
+    buku = Buku.query.get_or_404(buku_id)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    
+    styles = getSampleStyleSheet()
+    
+    style_cover_title = ParagraphStyle('CoverTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=30, alignment=TA_CENTER)
+    style_cover_sub = ParagraphStyle('CoverSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=18, alignment=TA_CENTER)
+    style_cover_quote = ParagraphStyle('CoverQuote', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=10, leading=14, alignment=TA_CENTER)
+    style_bagian = ParagraphStyle('BagianHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=13, leading=17, spaceBefore=15, spaceAfter=6)
+    style_bab_title = ParagraphStyle('BabTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, leading=15, spaceBefore=10, spaceAfter=4)
+    style_bab_body = ParagraphStyle('BabBody', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=14, alignment=TA_JUSTIFY, spaceAfter=10)
+
+    story = []
+    story.append(Spacer(1, 120))
+    story.append(Paragraph(f"<b>{escape(buku.judul.upper())}</b>", style_cover_title))
+    story.append(Spacer(1, 15))
+    if buku.subjudul:
+        story.append(Paragraph(escape(buku.subjudul), style_cover_sub))
+        story.append(Spacer(1, 20))
+    story.append(Paragraph("Disusun oleh: Dede Suhendra", style_cover_sub))
+    story.append(Spacer(1, 40))
+    if buku.kutipan:
+        story.append(Paragraph(f'"{escape(buku.kutipan)}"', style_cover_quote))
+    story.append(PageBreak())
+
+    last_bagian = None
+    for c in buku.catatan_list:
+        if c.bagian and c.bagian != last_bagian:
+            last_bagian = c.bagian
+            story.append(Paragraph(f"<b>{escape(last_bagian)}</b>", style_bagian))
+        
+        story.append(Paragraph(f"<b>{escape(c.judul_bab)}</b>", style_bab_title))
+        isi_pdf_aman = bersihkan_teks_pdf(c.isi)
+        story.append(Paragraph(isi_pdf_aman, style_bab_body))
+        story.append(Spacer(1, 8))
+
+    doc.build(story)
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"{re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)}.pdf", mimetype='application/pdf')
+
+@app.route('/export-buku-docx/<int:buku_id>')
+def export_buku_docx(buku_id):
+    from docx import Document
+    buku = Buku.query.get_or_404(buku_id)
+    doc = Document()
+    doc.add_heading(buku.judul.upper(), level=0)
+    if buku.subjudul: doc.add_paragraph(buku.subjudul)
+    doc.add_page_break()
+
+    for c in buku.catatan_list:
+        doc.add_heading(c.judul_bab, level=2)
+        for p in c.isi.split('\n'):
+            if p.strip(): doc.add_paragraph(p.strip())
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
+    return send_file(buffer, as_attachment=True, download_name=f"{filename}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+@app.route('/export-buku-epub/<int:buku_id>')
+def export_buku_epub(buku_id):
+    from ebooklib import epub
+    buku = Buku.query.get_or_404(buku_id)
+    book = epub.EpubBook()
+    book.set_identifier(f'buku-{buku.id}')
+    book.set_title(buku.judul)
+    book.set_language('id')
+    book.add_author('Dede Suhendra')
+
+    chapters = []
+    for idx, c in enumerate(buku.catatan_list):
+        ch = epub.EpubHtml(title=c.judul_bab, file_name=f'chap_{idx+1}.xhtml', lang='id')
+        isi_html = f"<h2>{escape(c.judul_bab)}</h2>"
+        for p in c.isi.split('\n'):
+            if p.strip(): isi_html += f"<p>{escape(p.strip())}</p>"
+        ch.content = isi_html
+        book.add_item(ch)
+        chapters.append(ch)
+
+    book.toc = tuple(chapters)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ['nav'] + chapters
+
+    buffer = BytesIO()
+    epub.write_epub(buffer, book, {})
+    buffer.seek(0)
+    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
+    return send_file(buffer, as_attachment=True, download_name=f"{filename}.epub", mimetype='application/epub+zip')
 
 @app.route('/tambah-esai', methods=['POST'])
 def tambah_esai():
@@ -2288,98 +2381,6 @@ def export_buku(buku_id):
     teks = f"JUDUL: {buku.judul}\n" + "\n".join([f"[{c.bagian}] {c.judul_bab}\n{c.isi}\n" for c in buku.catatan_list])
     return Response(teks, mimetype='text/plain', headers={'Content-Disposition': f'attachment;filename={buku.judul}.txt'})
 
-@app.route('/export-buku-docx/<int:buku_id>')
-def export_buku_docx(buku_id):
-    buku = Buku.query.get_or_404(buku_id)
-    doc = Document()
-    doc.add_heading(buku.judul.upper(), level=0)
-    if buku.subjudul: doc.add_paragraph(buku.subjudul)
-    doc.add_page_break()
-
-    for c in buku.catatan_list:
-        doc.add_heading(c.judul_bab, level=2)
-        for p in c.isi.split('\n'):
-            if p.strip(): doc.add_paragraph(p.strip())
-
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
-    return send_file(buffer, as_attachment=True, download_name=f"{filename}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-
-@app.route('/export-buku-epub/<int:buku_id>')
-def export_buku_epub(buku_id):
-    buku = Buku.query.get_or_404(buku_id)
-    book = epub.EpubBook()
-    book.set_identifier(f'buku-{buku.id}')
-    book.set_title(buku.judul)
-    book.set_language('id')
-    book.add_author('Dede Suhendra')
-
-    chapters = []
-    for idx, c in enumerate(buku.catatan_list):
-        ch = epub.EpubHtml(title=c.judul_bab, file_name=f'chap_{idx+1}.xhtml', lang='id')
-        isi_html = f"<h2>{escape(c.judul_bab)}</h2>"
-        for p in c.isi.split('\n'):
-            if p.strip(): isi_html += f"<p>{escape(p.strip())}</p>"
-        ch.content = isi_html
-        book.add_item(ch)
-        chapters.append(ch)
-
-    book.toc = tuple(chapters)
-    book.add_item(epub.EpubNcx())
-    book.add_item(epub.EpubNav())
-    book.spine = ['nav'] + chapters
-
-    buffer = BytesIO()
-    epub.write_epub(buffer, book, {})
-    buffer.seek(0)
-    filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)
-    return send_file(buffer, as_attachment=True, download_name=f"{filename}.epub", mimetype='application/epub+zip')
-
-@app.route('/export-buku-pdf/<int:buku_id>')
-def export_buku_pdf(buku_id):
-    buku = Buku.query.get_or_404(buku_id)
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
-    
-    styles = getSampleStyleSheet()
-    
-    style_cover_title = ParagraphStyle('CoverTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=30, alignment=TA_CENTER)
-    style_cover_sub = ParagraphStyle('CoverSub', parent=styles['Normal'], fontName='Helvetica', fontSize=13, leading=18, alignment=TA_CENTER)
-    style_cover_quote = ParagraphStyle('CoverQuote', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=10, leading=14, alignment=TA_CENTER)
-    style_bagian = ParagraphStyle('BagianHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=13, leading=17, spaceBefore=15, spaceAfter=6)
-    style_bab_title = ParagraphStyle('BabTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, leading=15, spaceBefore=10, spaceAfter=4)
-    style_bab_body = ParagraphStyle('BabBody', parent=styles['Normal'], fontName='Helvetica', fontSize=10, leading=14, alignment=TA_JUSTIFY, spaceAfter=10)
-
-    story = []
-    story.append(Spacer(1, 120))
-    story.append(Paragraph(f"<b>{escape(buku.judul.upper())}</b>", style_cover_title))
-    story.append(Spacer(1, 15))
-    if buku.subjudul:
-        story.append(Paragraph(escape(buku.subjudul), style_cover_sub))
-        story.append(Spacer(1, 20))
-    story.append(Paragraph("Disusun oleh: Dede Suhendra", style_cover_sub))
-    story.append(Spacer(1, 40))
-    if buku.kutipan:
-        story.append(Paragraph(f'"{escape(buku.kutipan)}"', style_cover_quote))
-    story.append(PageBreak())
-
-    last_bagian = None
-    for c in buku.catatan_list:
-        if c.bagian and c.bagian != last_bagian:
-            last_bagian = c.bagian
-            story.append(Paragraph(f"<b>{escape(last_bagian)}</b>", style_bagian))
-        
-        story.append(Paragraph(f"<b>{escape(c.judul_bab)}</b>", style_bab_title))
-        isi_pdf_aman = bersihkan_teks_pdf(c.isi)
-        story.append(Paragraph(isi_pdf_aman, style_bab_body))
-        story.append(Spacer(1, 8))
-
-    doc.build(story)
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name=f"{re.sub(r'[^a-zA-Z0-9_.-]', '_', buku.judul)}.pdf", mimetype='application/pdf')
-
 @app.route('/statistik')
 def statistik():
     return render_template_string(HTML_STATISTIK, total_buku=Buku.query.count(), total_catatan=Catatan.query.count())
@@ -2470,4 +2471,3 @@ def restore_db():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
