@@ -66,12 +66,15 @@ os.makedirs(UPLOAD_PDF_FOLDER, exist_ok=True)
 # ==================================================
 # KONFIGURASI DATABASE (SUPABASE POSTGRESQL)
 # ==================================================
-# Masukkan URL Supabase langsung agar tidak memanggil libsql
-DATABASE_URL = "postgresql://postgres.mlzpbbvtufjvkpyddqvz:Sindanglaut74801@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres"
+DEFAULT_SUPABASE_URL = "postgresql+psycopg2://postgres.mlzpbbvtufjvkpyddqvz:Sindanglaut74801@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres"
+DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_SUPABASE_URL)
 
-# Pastikan prefix selalu postgresql://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Paksa penyesuaian skema URI agar selalu memakai psycopg2
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -82,6 +85,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 db = SQLAlchemy(app)
+
 
 ADMIN_USER = "dede"
 ADMIN_PASS_HASH = generate_password_hash("suhendra123")
